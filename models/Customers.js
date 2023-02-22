@@ -15,12 +15,15 @@ const customerSchema= new mongoose.Schema({
         type:String,
         required:true
     },
-    firebaseHash:{
+    userUid:{
         type:String,
         required:true
     },
     gender:{
         type:String
+    },
+    bloodGroup:{
+        type:String,
     },
     qrStatus:[
     {

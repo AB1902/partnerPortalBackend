@@ -17,6 +17,7 @@ const {GridFsStorage} = require('multer-gridfs-storage');
 const mongoose=require('mongoose')
 const Document=require("./models/Documents")
 const { cursorTo } = require('readline')
+const config=require('config')
 connectDB()
 
 // const mongouri='mongodb+srv://hector1902:Viennacity.123@cluster0.1fezuvb.mongodb.net/?retryWrites=true&w=majority'
@@ -88,10 +89,33 @@ app.post("/partnerUsers/signup",async(req,res) => {
 })
 
 app.post("/partnerUsers/login",async(req,res) => {
+    const {partnerUserUid,password}=req.body
     try {
-        res.send("route working")
+        let partner=await PartnerUsers.find({partnerUserUid}) 
+        if(!partner){
+            res.status(400).json({message:'user not found'})
+        }
+        //res.json(partner[0].password)
+        const validPassword=await bcrypt.compare(password,partner[0].password)
+        if(!validPassword){
+            res.status(400).json({message:'wrong password'})
+        }
+
+        const payload={
+            loggedInPartnerUser:{
+                id:partnerUserUid
+            }
+        }
+
+        jwt.sign(payload,config.get("JWTSecret"),(err,token) => {
+            if(err)
+                console.log(err.message)
+            res.status(200).json({token,message:'logged in successfully'})
+        })
+
     } catch (error) {
-        res.status(400).json({error:'error.message'})
+        console.log(error)
+        res.status(400).json({error:error.message})
     }
 })
 
@@ -161,28 +185,37 @@ app.post("/upload",async(req,res) => {
 
 
 app.post("/customers",async(req,res) => {
-    const {name,address,dob,partnerUid,firebaseHash,
-            gender}=req.body
-            try {
-                let customer=await Customers.find({firebaseHash})
-                if(customer){
-                    res.json({message:'customer already exists'})
-                }
-                customer=new Customers({
-                    name,address,dob,partnerUid,firebaseHash,gender
-                })
-                await customer.save()
-                res.status(200).json({message:'customer added',customer})
-            } catch (error) {
-                res.status(400).json({message:error.message})
-            }
+    const {name,address,dob,partnerUid,userUid,
+            gender,bloodGroup}=req.body
+    const token=req.headers["x-auth-token"]
+    const payload=jwt.verify(token,'Viennacity.123')
+    
+    const loggedInUser=await PartnerUsers.find({partnerUserUid:payload.loggedInPartnerUser.id})
+    // res.json({loggedInUser})
+    if(!loggedInUser){
+        console.log('not authorized')
+    }
+    try {
+        let customer=await Customers.find({userUid})
+        if(customer){
+            console.log({message:'user already exists'})
+        }
+        customer=new Customers({
+            name,address,dob,partnerUid,userUid,gender,bloodGroup
+        })
+        await customer.save()
+        res.status(200).json({message:'customer added',customer})
+    } catch (error) {
+        res.status(400).json({message:error.message})
+    }
+            
 })
 
 app.put("/customers/:id/qrHash",async(req,res) => {
     const {id,pin}=req.body
-    const firebaseHash=req.params.id
+    const userUid=req.params.id
     try {
-        let customer=await Customers.findOne({firebaseHash})
+        let customer=await Customers.findOne({userUid})
         if(!customer){
             res.status(400).json({message:'user does not exist'})
         }
@@ -191,7 +224,7 @@ app.put("/customers/:id/qrHash",async(req,res) => {
             pin
         }
 
-        await Customers.findOneAndUpdate({firebaseHash},{$push:{qrStatus:qr}})
+        await Customers.findOneAndUpdate({userUid},{$push:{qrStatus:qr}})
         res.status(200).json({message:'qr updated successfully',customer})
     } catch (error) {
         res.json({error:error.message})
@@ -200,14 +233,14 @@ app.put("/customers/:id/qrHash",async(req,res) => {
 
 app.put("/customers/:id/childList",async(req,res) => {
     const {childHash}=req.body
-    const firebaseHash=req.params.id
+    const userUid=req.params.id
     const newChild={childHash}
     try {
-        let customer=await Customers.findOne({firebaseHash})
+        let customer=await Customers.findOne({userUid})
         if(!customer){
             res.status(400).json({message:'user does not exist'})
         }
-        await Customers.findOneAndUpdate({firebaseHash},{$push:{childList:newChild}})
+        await Customers.findOneAndUpdate({userUid},{$push:{childList:newChild}})
         res.status(200).json({message:'childList updated successfully',customer})
     } catch (error) {
         res.json({error:error.message})
@@ -216,9 +249,9 @@ app.put("/customers/:id/childList",async(req,res) => {
 
 app.put("/customers/:id/groups",async(req,res) => {
     const {groupName,groupId,destination,startDate,endDate}=req.body
-    const firebaseHash=req.params.id
+    const userUid=req.params.id
     try {
-        let customer=await Customers.findOne({firebaseHash})
+        let customer=await Customers.findOne({userUid})
         if(!customer){
             res.status(400).json({message:'user does not exist'})
         }
@@ -229,7 +262,7 @@ app.put("/customers/:id/groups",async(req,res) => {
             startDate,
             endDate
         }
-        await Customers.findOneAndUpdate({firebaseHash},{$push:{groups:group}})
+        await Customers.findOneAndUpdate({userUid},{$push:{groups:group}})
         res.status(200).json({message:'group updated successfully',customer})
     } catch (error) {
         res.json({error:error.message})
