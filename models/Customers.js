@@ -19,6 +19,10 @@ const customerSchema= new mongoose.Schema({
         type:String,
         required:true
     },
+    childListUid:{
+        type:String,
+        required:true
+    },
     gender:{
         type:String
     },
@@ -67,16 +71,16 @@ const customerSchema= new mongoose.Schema({
             }
         ]
     ,
-    childList:
-    [
-        {
-            childHash:{
-                type:String,
-                required:true
-            }
-        }
+    // childList:
+    // [
+    //     {
+    //         childHash:{
+    //             type:String,
+    //             required:true
+    //         }
+    //     }
             
-    ]
+    // ]
     
    
 })

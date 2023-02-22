@@ -186,7 +186,7 @@ app.post("/upload",async(req,res) => {
 
 app.post("/customers",async(req,res) => {
     const {name,address,dob,partnerUid,userUid,
-            gender,bloodGroup}=req.body
+            gender,childListUid,bloodGroup}=req.body
     const token=req.headers["x-auth-token"]
     const payload=jwt.verify(token,'Viennacity.123')
     
@@ -197,11 +197,9 @@ app.post("/customers",async(req,res) => {
     }
     try {
         let customer=await Customers.find({userUid})
-        if(customer){
-            console.log({message:'user already exists'})
-        }
+        
         customer=new Customers({
-            name,address,dob,partnerUid,userUid,gender,bloodGroup
+            name,address,dob,partnerUid,childListUid,userUid,gender,bloodGroup
         })
         await customer.save()
         res.status(200).json({message:'customer added',customer})
