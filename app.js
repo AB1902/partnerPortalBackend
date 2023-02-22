@@ -145,6 +145,7 @@ app.post("/upload",async(req,res) => {
         else{
             const newDoc=new Document({
                 customerHash:req.body.customerHash,
+                description:req.body.description,
                 name:req.body.name,
                 document:{
                     data:req.file.filename,

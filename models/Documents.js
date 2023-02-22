@@ -10,6 +10,10 @@ const documentSchema=new mongoose.Schema({
         type:String,
         required:true
     },
+    description:{
+        type:String,
+        required:true
+    },
     document:{
         data:Buffer,
         contentType:String
