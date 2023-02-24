@@ -9,7 +9,8 @@ const customerSchema= new mongoose.Schema({
         type:String
     },
     dob:{
-        type:Date
+        type:Date,
+        required:true
     },
     partnerUid:{
         type:String,
@@ -24,53 +25,55 @@ const customerSchema= new mongoose.Schema({
         required:true
     },
     gender:{
-        type:String
+        type:String,
+        required:true
     },
     bloodGroup:{
         type:String,
+        required:true
     },
-    qrStatus:[
-    {
-        id:{
-            type:String,
-            required:true
-            },
-            pin:{
-                type:String,
-                required:true
-            },
-            lastScanned:{
-                type:Date
-            }
-    }
+    // qrStatus:[
+    // {
+    //     id:{
+    //         type:String,
+    //         required:true
+    //         },
+    //         pin:{
+    //             type:String,
+    //             required:true
+    //         },
+    //         lastScanned:{
+    //             type:Date
+    //         }
+    // }
                
-    ],
-    groups:
-        [
-            {
-                groupName:{
-                    type:String,
-                    required:true
-                },
-                groupId:{
-                    type:mongoose.Types.ObjectId,
-                    ref:'Group',
-                },
-                destination:{
-                    type:String,
-                    required:true
-                },
-                startDate:{
-                    type:Date,
-                    required:true
-                },
-                endDate:{
-                    type:Date,
-                    required:true
-                }
-            }
-        ]
-    ,
+    // ],
+    // groups:
+    //     [
+    //         {
+    //             groupName:{
+    //                 type:String,
+    //                 required:true
+    //             },
+    //             groupId:{
+    //                 type:mongoose.Types.ObjectId,
+    //                 ref:'Group',
+    //             },
+    //             destination:{
+    //                 type:String,
+    //                 required:true
+    //             },
+    //             startDate:{
+    //                 type:Date,
+    //                 required:true
+    //             },
+    //             endDate:{
+    //                 type:Date,
+    //                 required:true
+    //             }
+    //         }
+    //     ]
+    // ,
     // childList:
     // [
     //     {

@@ -18,6 +18,9 @@ const mongoose=require('mongoose')
 const Document=require("./models/Documents")
 const { cursorTo } = require('readline')
 const config=require('config')
+const CustomerGroups = require('./models/CustomerGroups')
+const CustomerQr=require("./models/CustomerQr")
+const lastScannedQr=require('./models/LastScannedQr')
 connectDB()
 
 // const mongouri='mongodb+srv://hector1902:Viennacity.123@cluster0.1fezuvb.mongodb.net/?retryWrites=true&w=majority'
@@ -38,14 +41,12 @@ const upload=multer({
     storage
 }).single('filename')
 
-
-
 app.get("/",(req,res) => {
     res.send('route working')
 })
 
 app.get("/partners",async(req,res) => {
-    let partners=await Partners.find()
+    let partners=await Partners.find({})
     res.json({partners})
 })
 
@@ -57,6 +58,18 @@ app.get("/partnerUsers",async(req,res) => {
 app.get("/groups",async(req,res) => {
     let groups=await Groups.find({})
     res.json({groups})
+})
+
+app.get("/customers/:id/groups",async(req,res) => {
+    const customerId=req.params.id
+    const customerGroups=await CustomerGroups.find({customerId})
+    res.json({customerGroups})
+})
+
+app.get("/customers/:id/qr",async(req,res) => {
+    const userId=req.params.id
+    const customerQrs=await CustomerQr.find({userId})
+    res.json({customerQrs})
 })
 
 app.get("/customers",async(req,res) => {
@@ -209,25 +222,25 @@ app.post("/customers",async(req,res) => {
             
 })
 
-app.put("/customers/:id/qrHash",async(req,res) => {
-    const {id,pin}=req.body
-    const userUid=req.params.id
-    try {
-        let customer=await Customers.findOne({userUid})
-        if(!customer){
-            res.status(400).json({message:'user does not exist'})
-        }
-        const qr={
-            id,
-            pin
-        }
+// app.put("/customers/:id/qrHash",async(req,res) => {
+//     const {id,pin}=req.body
+//     const userUid=req.params.id
+//     try {
+//         let customer=await Customers.findOne({userUid})
+//         if(!customer){
+//             res.status(400).json({message:'user does not exist'})
+//         }
+//         const qr={
+//             id,
+//             pin
+//         }
 
-        await Customers.findOneAndUpdate({userUid},{$push:{qrStatus:qr}})
-        res.status(200).json({message:'qr updated successfully',customer})
-    } catch (error) {
-        res.json({error:error.message})
-    }
-})
+//         await Customers.findOneAndUpdate({userUid},{$push:{qrStatus:qr}})
+//         res.status(200).json({message:'qr updated successfully',customer})
+//     } catch (error) {
+//         res.json({error:error.message})
+//     }
+// })
 
 app.put("/customers/:id/childList",async(req,res) => {
     const {childHash}=req.body
@@ -245,26 +258,78 @@ app.put("/customers/:id/childList",async(req,res) => {
     }
 })
 
-app.put("/customers/:id/groups",async(req,res) => {
-    const {groupName,groupId,destination,startDate,endDate}=req.body
-    const userUid=req.params.id
+// app.put("/customers/:id/groups",async(req,res) => {
+//     const {groupName,groupId,destination,startDate,endDate}=req.body
+//     const userUid=req.params.id
+//     try {
+//         let customer=await Customers.findOne({userUid})
+//         if(!customer){
+//             res.status(400).json({message:'user does not exist'})
+//         }
+//         const group={
+//             groupName,
+//             groupId,
+//             destination,
+//             startDate,
+//             endDate
+//         }
+//         await Customers.findOneAndUpdate({userUid},{$push:{groups:group}})
+//         res.status(200).json({message:'group updated successfully',customer})
+//     } catch (error) {
+//         res.json({error:error.message})
+//     }
+// })
+
+
+//adding customer to a new group
+app.post("/customers/:id/groups",async(req,res) => {
+    const {groupName,groupId,groupDescription,partnerUid,startDate,endDate}=req.body
+    const customerId=req.params.id
     try {
-        let customer=await Customers.findOne({userUid})
-        if(!customer){
-            res.status(400).json({message:'user does not exist'})
-        }
-        const group={
-            groupName,
-            groupId,
-            destination,
-            startDate,
-            endDate
-        }
-        await Customers.findOneAndUpdate({userUid},{$push:{groups:group}})
-        res.status(200).json({message:'group updated successfully',customer})
+        const customerGroup=new CustomerGroups({
+            customerId,groupId,groupName,groupDescription,partnerUid,startDate,endDate
+        })
+        await customerGroup.save()
+        res.json({message:'customer added to a new group',customerGroup})
     } catch (error) {
-        res.json({error:error.message})
+        res.status(400).json({error:error.message})
     }
+})
+
+//assigning QR to customer
+app.post("/customers/:id/qr",async(req,res) => {
+    const customerId=req.params.id
+    const {qrId,qrPin,lastScanned}=req.body
+    try {
+        const customerQr=new CustomerQr({
+            customerId,qrId,qrPin,lastScanned
+        })
+        await customerQr.save()
+        res.json({customerQr})
+    } catch (error) {
+        res.status(400).json({message:error.message})
+    }
+})
+
+app.post("/lastScanned",async (req,res) => {
+    const {
+        userUid,childListUid,ip_address,latitude,longitude,
+        qrcode,datetime,address,recipients,smstext,
+        permission_given,timestamp
+    }=req.body
+    try {
+        const userId=userUid+' '+childListUid
+        const newLastScanned=new lastScannedQr({
+            userId,ip_address,latitude,longitude,
+            qrcode,datetime,address,recipients,smstext,
+            permission_given,timestamp
+        })
+        await newLastScanned.save()
+        res.json({newLastScanned})
+    } catch (error) {
+        res.status(400).json({error:error.message})
+    }
+
 })
 
 app.listen(PORT=1902,() => {
