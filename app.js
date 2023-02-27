@@ -21,6 +21,7 @@ const config=require('config')
 const CustomerGroups = require('./models/CustomerGroups')
 const CustomerQr=require("./models/CustomerQr")
 const lastScannedQr=require('./models/LastScannedQr')
+const { db } = require('./models/Partners')
 connectDB()
 
 // const mongouri='mongodb+srv://hector1902:Viennacity.123@cluster0.1fezuvb.mongodb.net/?retryWrites=true&w=majority'
@@ -87,6 +88,37 @@ app.get("/upload/:id" ,async(req,res) => {
     const customerHash=req.params.id
     const doc=await Document.find({customerHash})
     res.json({doc})
+})
+
+app.get("/customerData",async(req,res) =>{
+    var customers=await Customers.aggregate([
+        {
+            $lookup:{
+                from:"customergroups",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerGroups"
+            }
+        },
+        {
+            $lookup:{
+                from:"customerqrs",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerQrs"
+            },
+        },
+        {
+            $lookup:{
+                from:"documents",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerDocs"
+            },
+        }
+        
+    ])
+    res.json({customers})
 })
 
 app.post("/partnerUsers/signup",async(req,res) => {

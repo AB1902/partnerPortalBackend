@@ -11,7 +11,7 @@ const customerGroupsSchema=new mongoose.Schema({
     //     required:true
     // },
     customerId:{
-        type:mongoose.Schema.Types.ObjectId,
+        type:mongoose.Schema.ObjectId,
         ref:'Customer',
         required:true
     },

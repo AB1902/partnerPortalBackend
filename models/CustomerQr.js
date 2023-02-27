@@ -3,7 +3,7 @@ const mongoose=require('mongoose')
 const customerqrStatusSchema=new mongoose.Schema({
     //customerId
     customerId:{
-        type:mongoose.Schema.Types.ObjectId,
+        type:mongoose.Schema.ObjectId,
         ref:'Customer',
         required:true
     },

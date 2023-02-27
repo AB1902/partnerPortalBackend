@@ -6,8 +6,10 @@ const documentSchema=new mongoose.Schema({
         type:String,
         required:true
     },
-    userId:{
-        type:mongoose.Schema.Types.ObjectId
+    customerId:{
+        type:mongoose.Schema.ObjectId,
+        ref:'Customer',
+        required:true
     },
     name:{
         type:String,
