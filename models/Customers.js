@@ -10,7 +10,6 @@ const customerSchema= new mongoose.Schema({
     },
     dob:{
         type:Date,
-        required:true
     },
     partnerUid:{
         type:String,
@@ -26,11 +25,9 @@ const customerSchema= new mongoose.Schema({
     },
     gender:{
         type:String,
-        required:true
     },
     bloodGroup:{
         type:String,
-        required:true
     },
     // qrStatus:[
     // {

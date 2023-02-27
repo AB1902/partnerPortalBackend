@@ -67,8 +67,8 @@ app.get("/customers/:id/groups",async(req,res) => {
 })
 
 app.get("/customers/:id/qr",async(req,res) => {
-    const userId=req.params.id
-    const customerQrs=await CustomerQr.find({userId})
+    const customerId=req.params.id
+    const customerQrs=await CustomerQr.find({customerId})
     res.json({customerQrs})
 })
 
@@ -77,8 +77,16 @@ app.get("/customers",async(req,res) => {
     res.json({customers})
 })
 
-app.get("/upload",(req,res) => {
-    res.send("file upload")
+app.get("/upload",async(req,res) => {
+    const docs=await Document.find({})
+    res.status(200).json({docs})
+})
+
+
+app.get("/upload/:id" ,async(req,res) => {
+    const customerHash=req.params.id
+    const doc=await Document.find({customerHash})
+    res.json({doc})
 })
 
 app.post("/partnerUsers/signup",async(req,res) => {
@@ -195,7 +203,6 @@ app.post("/upload",async(req,res) => {
         }
     })
 })
-
 
 app.post("/customers",async(req,res) => {
     const {name,address,dob,partnerUid,userUid,
