@@ -216,7 +216,7 @@ app.post("/upload",async(req,res) => {
         if(err){
             console.log(err.message)
         }
-        if(!req.body.customerHash){
+        if(!req.body.customerId){
             res.json({'message':"user does not exist"})
         }
         else{
@@ -227,7 +227,8 @@ app.post("/upload",async(req,res) => {
                 document:{
                     data:req.file.filename,
                     contentType:'application/pdf'
-                }
+                },
+                customerId:req.body.customerId
             })
             newDoc.save()
             .then(() => res.send('success') )

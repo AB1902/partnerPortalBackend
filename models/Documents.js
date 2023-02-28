@@ -4,7 +4,6 @@ const documentSchema=new mongoose.Schema({
     
     customerHash:{
         type:String,
-        required:true
     },
     customerId:{
         type:mongoose.Schema.ObjectId,
