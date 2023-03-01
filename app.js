@@ -73,6 +73,30 @@ app.get("/customers/:id/qr",async(req,res) => {
     res.json({customerQrs})
 })
 
+app.delete("/doc/:id",async(req,res) => {
+    const _id=(req.params.id)
+    Document.findByIdAndDelete(_id)
+    .then(result => {
+        res.json({result,deleted:true})
+    }).catch(err => {
+        res.json({error:err.message})
+    })
+
+})
+
+app.delete("/qr/:id",async(req,res) => {
+    const id=(req.params.id)
+    CustomerQr.findByIdAndDelete(id)
+    .then(result => {
+        res.json({result,deleted:true})
+    }).catch(err => {
+        res.json({error:err.message})
+    })
+
+})
+
+
+
 app.get("/customers",async(req,res) => {
     let customers=await Customers.find({})
     res.json({customers})
@@ -371,6 +395,15 @@ app.post("/lastScanned",async (req,res) => {
     }
 
 })
+
+// app.delete("/doc/:id",async(req,res) => {
+//     const _id=JSON.stringify(req.params.id)
+//     const doc=Document.findById(_id)
+//     if(!doc)
+//         res.send("doc not found")
+//     res.send(doc)
+// })
+
 
 app.listen(PORT=1902,() => {
     console.log("server started")
