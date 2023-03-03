@@ -142,7 +142,69 @@ app.get("/customerData",async(req,res) =>{
         }
         
     ])
+
+    // const results={}
+    // if(startIndex>0){
+    // results.next={
+    //     page:page+1,
+    //     limit:limit
+    // }}
+    // if(endIndex<customers.length){
+    // results.previous={
+    //     page:page-1,
+    //     limit:limit
+    // }}
+    // results.customers=customers.slice(startIndex,endIndex)
     res.json({customers})
+})
+
+app.get("/customerData/new",async(req,res) =>{
+    const page=parseInt(req.query.page)
+    const limit=parseInt(req.query.limit)
+    const startIndex=(page-1)*limit
+    const endIndex=page*limit
+
+    var customers=await Customers.aggregate([
+        {
+            $lookup:{
+                from:"customergroups",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerGroups"
+            }
+        },
+        {
+            $lookup:{
+                from:"customerqrs",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerQrs"
+            },
+        },
+        {
+            $lookup:{
+                from:"documents",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerDocs"
+            },
+        }
+        
+    ])
+
+    const results={}
+    if(startIndex>0){
+    results.next={
+        page:page+1,
+        limit:limit
+    }}
+    if(endIndex<customers.length){
+    results.previous={
+        page:page-1,
+        limit:limit
+    }}
+    results.customers=customers.slice(startIndex,endIndex)
+    res.json({results})
 })
 
 app.post("/partnerUsers/signup",async(req,res) => {
@@ -230,6 +292,35 @@ app.post("/groups",async(req,res) => {
         await group.save()
         res.json({message:'group saved successfully'})
     } catch (error) {
+        res.json({error:error.message})
+    }
+})
+
+app.post("/createGroupAddCustomer/:id",async (req,res) => {
+    const customerId=req.params.id
+    try{
+        const {groupName,groupDescription,startDate,endDate}=req.body
+        const partnerUid='7ocUlGvJ22l4O1gbfg0p'
+        let group=new Groups({groupName,groupDescription,partnerUid,startDate,endDate})
+        group.startDate=new Date(startDate)
+        group.endDate=new Date(endDate)
+
+        await group.save()
+        // console.log(group._id)
+        // res.json({group})
+        const groupId=group._id
+        try {
+            const customerGroup=new CustomerGroups({
+                customerId,groupId,groupName,groupDescription,partnerUid,startDate,endDate
+            })
+            await customerGroup.save()
+            
+        } catch (error) {
+            console.log(error.message)
+        }
+        res.json({message:'group created and customer added',group})
+    }
+    catch(error){
         res.json({error:error.message})
     }
 })
@@ -396,6 +487,8 @@ app.post("/lastScanned",async (req,res) => {
 
 })
 
+
+
 // app.delete("/doc/:id",async(req,res) => {
 //     const _id=JSON.stringify(req.params.id)
 //     const doc=Document.findById(_id)
@@ -404,6 +497,15 @@ app.post("/lastScanned",async (req,res) => {
 //     res.send(doc)
 // })
 
+app.delete("/customer/:id",async(req,res) => {
+    const id=req.params.id
+    CustomerQr.findByIdAndDelete(id)
+    .then(result => {
+        res.json({result,deleted:true})
+    }).catch(err => {
+        res.json({error:err.message})
+    })
+})
 
 app.listen(PORT=1902,() => {
     console.log("server started")

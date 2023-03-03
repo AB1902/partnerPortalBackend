@@ -28,11 +28,10 @@ const customerGroupsSchema=new mongoose.Schema({
     },
     groupDescription:{
         type:String,
-        required:true
+        
     },
     partnerUid:{
-        data:Buffer,
-        contentType:String
+        type:String
     },
     startDate:{
         type:Date
