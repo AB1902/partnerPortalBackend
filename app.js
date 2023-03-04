@@ -196,13 +196,16 @@ app.get("/customerData/new",async(req,res) =>{
     if(startIndex>0){
     results.next={
         page:page+1,
-        limit:limit
+        limit:limit,
+        
     }}
     if(endIndex<customers.length){
     results.previous={
         page:page-1,
-        limit:limit
+        limit:limit,
+        
     }}
+    results.total=customers.length
     results.customers=customers.slice(startIndex,endIndex)
     res.json({results})
 })
