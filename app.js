@@ -22,6 +22,7 @@ const CustomerGroups = require('./models/CustomerGroups')
 const CustomerQr=require("./models/CustomerQr")
 const lastScannedQr=require('./models/LastScannedQr')
 const { db } = require('./models/Partners')
+const csv=require('csvtojson')
 connectDB()
 
 // const mongouri='mongodb+srv://hector1902:Viennacity.123@cluster0.1fezuvb.mongodb.net/?retryWrites=true&w=majority'
@@ -30,6 +31,8 @@ connectDB()
 
 app.use(cors())
 app.use(express.json())
+app.use(bodyParser.urlencoded({extended:true}))
+app.use(express.static(path.resolve(__dirname,'public')))
 
 const storage=multer.diskStorage({
     destination:'uploads',
@@ -37,6 +40,17 @@ const storage=multer.diskStorage({
         cb(null,Date.now()+filename.originalname)
     }
 })
+
+ var customerStorage=multer.diskStorage({
+    destination:(req,file,cb) => {
+        cb(null,'./public/customerUploads')
+    },
+    filename:(req,file,cb) => {
+        cb(null,file.originalname)
+    }
+})
+
+const customerUpload=multer({storage:customerStorage})
 
 const upload=multer({
     storage
@@ -139,22 +153,17 @@ app.get("/customerData",async(req,res) =>{
                 foreignField:"customerId",
                 as:"customerDocs"
             },
+        },
+        {
+            $lookup:{
+                from:"lastscanneds",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"lastScanned"
+            },
         }
         
     ])
-
-    // const results={}
-    // if(startIndex>0){
-    // results.next={
-    //     page:page+1,
-    //     limit:limit
-    // }}
-    // if(endIndex<customers.length){
-    // results.previous={
-    //     page:page-1,
-    //     limit:limit
-    // }}
-    // results.customers=customers.slice(startIndex,endIndex)
     res.json({customers})
 })
 
@@ -188,6 +197,14 @@ app.get("/customerData/new",async(req,res) =>{
                 foreignField:"customerId",
                 as:"customerDocs"
             },
+        },
+        {
+            $lookup:{
+                from:"lastscanneds",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"lastScanned"
+            },
         }
         
     ])
@@ -208,6 +225,286 @@ app.get("/customerData/new",async(req,res) =>{
     results.total=customers.length
     results.customers=customers.slice(startIndex,endIndex)
     res.json({results})
+})
+
+//filter route
+app.post("/customerData/filter",async(req,res) =>{
+    const {groupSelect,groupAssigned,qrAssigned,docsAssigned,qrScanData}=req.body
+    console.log(groupSelect,groupAssigned,qrAssigned,docsAssigned,qrScanData)
+    var customers=await Customers.aggregate([
+        {
+            $lookup:{
+                from:"customergroups",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerGroups"
+            }
+        },
+        {
+            $lookup:{
+                from:"customerqrs",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerQrs"
+            },
+        },
+        {
+            $lookup:{
+                from:"documents",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"customerDocs"
+            },
+        },
+        {
+            $lookup:{
+                from:"lastscanneds",
+                localField:"_id",
+                foreignField:"customerId",
+                as:"lastScanned"
+            },
+        }
+        
+    ])
+   
+    let filteredData=[]
+    if(groupSelect!=='All'){
+    customers.forEach(customer =>{
+        customer.customerGroups.forEach(group =>{
+            if(group.groupName===groupSelect)
+                filteredData.push(customer)
+        })
+        if(groupAssigned==='Yes'){
+            filteredData=filteredData.filter((data) => {
+                if(data.customerGroups.length>0)
+                    return data
+            })
+        }else if(groupAssigned=='No'){
+            filteredData=filteredData.filter((data) => {
+                if(data.customerGroups.length===0)
+                    return data
+            })
+        }
+        if(qrAssigned==='Yes'){
+            filteredData=filteredData.filter((data) => {
+                if(data.customerQrs.length>0)
+                    return data
+            })
+        }else if(qrAssigned=='No'){
+            filteredData=filteredData.filter((data) => {
+                if(data.customerQrs.length===0)
+                    return data
+            })
+        }
+        if(docsAssigned==='Yes'){
+            filteredData=filteredData.filter((data) => {
+                if(data.customerDocs.length>0)
+                    return data
+            })
+        }else if(docsAssigned=='No'){
+            filteredData=filteredData.filter((data) => {
+                if(data.customerDocs.length===0)
+                    return data
+            })
+        }
+        if(qrScanData==='Yes'){
+            filteredData=filteredData.filter((data) => {
+                if(data.lastScanned?.length>0)
+                    return data
+            })
+        }else if(qrScanData=='No'){
+            filteredData=filteredData.filter((data) => {
+                if(data.lastScanned?.length===0)
+                    return data
+            })
+        }
+    })
+    }
+    else{
+        if(groupAssigned==='Yes'){
+            customers.forEach(customer => {
+                if(customer.customerGroups.length>0)
+                    filteredData.push(customer)
+            })
+            if(qrAssigned==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerQrs.length>0)
+                        return data
+                })
+            }else if(qrAssigned=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerQrs.length===0)
+                        return data
+                })
+            }
+            if(docsAssigned==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerDocs.length>0)
+                        return data
+                })
+            }else if(docsAssigned=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerDocs.length===0)
+                        return data
+                })
+            }
+            if(qrScanData==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length>0)
+                        return data
+                })
+            }else if(qrScanData=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length===0)
+                        return data
+                })
+            }
+        }
+        else if(groupAssigned==='No'){
+            customers.forEach(customer => {
+                if(customer.customerGroups.length===0)
+                    filteredData.push(customer)
+            })
+            if(qrAssigned==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerQrs.length>0)
+                        return data
+                })
+            }else if(qrAssigned=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerQrs.length===0)
+                        return data
+                })
+            }
+            if(docsAssigned==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerDocs.length>0)
+                        return data
+                })
+            }else if(docsAssigned=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerDocs.length===0)
+                        return data
+                })
+            }
+            if(qrScanData==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length>0)
+                        return data
+                })
+            }else if(qrScanData=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length===0)
+                        return data
+                })
+            }
+        }
+        else if(qrAssigned==='Yes'){
+            customers.forEach(customer => {
+                if(customer.customerQrs.length>0)
+                    filteredData.push(customer)
+            })
+            if(docsAssigned==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerDocs.length>0)
+                        return data
+                })
+            }else if(docsAssigned=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerDocs.length===0)
+                        return data
+                })
+            }
+            if(qrScanData==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length>0)
+                        return data
+                })
+            }else if(qrScanData=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length===0)
+                        return data
+                })
+            }
+        }
+        else if(qrAssigned==='No'){
+            customers.forEach(customer => {
+                if(customer.customerQrs.length===0)
+                    filteredData.push(customer)
+            })
+            if(docsAssigned==='Yes'){   
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerDocs.length>0)
+                        return data
+                })
+            }else if(docsAssigned=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.customerDocs.length===0)
+                        return data
+                })
+            }
+            if(qrScanData==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length>0)
+                        return data
+                })
+            }else if(qrScanData=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length===0)
+                        return data
+                })
+            }
+        }
+        else if(docsAssigned==='Yes'){
+            customers.forEach(customer => {
+                if(customer.customerDocs.length>0)
+                    filteredData.push(customer)
+            })
+            if(qrScanData==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length>0)
+                        return data
+                })
+            }else if(qrScanData=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length===0)
+                        return data
+                })
+            }
+        }
+        else if(docsAssigned==='No'){
+            customers.forEach(customer => {
+                if(customer.customerDocs.length===0)
+                    filteredData.push(customer)
+            })
+            if(qrScanData==='Yes'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length>0)
+                        return data
+                })
+            }else if(qrScanData=='No'){
+                filteredData=filteredData.filter((data) => {
+                    if(data.lastScanned?.length===0)
+                        return data
+                })
+            }
+        }
+        else if(qrScanData==='Yes'){
+            customers.forEach(customer => {
+                if(customer.lastScanned.length>0)
+                    filteredData.push(customer)
+            })
+        }
+        else if(qrScanData==='No'){
+            customers.forEach(customer => {
+                if(customer.lastScanned.length===0)
+                    filteredData.push(customer)
+            })
+        }
+    } 
+    console.log(filteredData)
+
+    res.json({filteredData})
 })
 
 app.post("/partnerUsers/signup",async(req,res) => {
@@ -299,6 +596,66 @@ app.post("/groups",async(req,res) => {
     }
 })
 
+
+//add many customers to already exitsing group
+app.post("/groupsAddMany",async(req,res) => {
+    
+    const {groupName,groupId,groupDescription,partnerUid,startDate,endDate}=req.body
+    const dataArr=req.body.dataArr
+    try {
+        dataArr.forEach(async(data) => {
+            if(data.isChecked===true)
+            {
+                const customergroup=new CustomerGroups({customerId:data._id,
+                groupName,groupId,groupDescription,partnerUid,startDate,endDate})
+                await customergroup.save()
+            }    
+        }
+        )
+        res.json({message:'customers added'})
+    } catch (error) {
+        res.json({error:error.message})
+    }
+})
+
+//add multiple customers to a newly created group
+app.post("/createGroupAddMultiCustomer",async (req,res) => {
+
+    try{
+        const {groupName,groupDescription,startDate,endDate}=req.body
+        const dataArr=req.body.dataArr
+        const partnerUid='7ocUlGvJ22l4O1gbfg0p'
+        let group=new Groups({groupName,groupDescription,partnerUid,startDate,endDate})
+        group.startDate=new Date(startDate)
+        group.endDate=new Date(endDate)
+
+        await group.save()
+        // console.log(group._id)
+        // res.json({group})
+        const groupId=group._id
+
+        dataArr.forEach(async(data) => {
+            if(data.isChecked===true){
+                try {
+                    const customerGroup=new CustomerGroups({
+                        customerId:data._id,groupId,groupName,groupDescription,partnerUid,startDate,endDate
+                    })
+                    await customerGroup.save()
+                    
+                } catch (error) {
+                    console.log(error.message)
+                }
+            }
+        })
+        
+        res.json({message:'group created and customers added',group})
+    }
+    catch(error){
+        res.json({error:error.message})
+    }
+})
+
+//add a single customer to a new group
 app.post("/createGroupAddCustomer/:id",async (req,res) => {
     const customerId=req.params.id
     try{
@@ -328,6 +685,7 @@ app.post("/createGroupAddCustomer/:id",async (req,res) => {
     }
 })
 
+//upload a doucment to a single customer
 app.post("/upload",async(req,res) => {
 
     upload (req,res,(err) =>{
@@ -355,6 +713,35 @@ app.post("/upload",async(req,res) => {
     })
 })
 
+//upload a doucment to multiple customers
+app.post("/uploadToMultiCustomers",async(req,res) => {
+    
+    upload (req,res,(err) =>{
+        if(err){
+            console.log(err.message)
+        }
+        else{
+            const dataArr=JSON.parse(req.body.dataArr)
+            //console.log(dataArr)
+            dataArr.forEach(async(data) => {
+               if(data.isChecked===true){
+                const newDoc=new Document({
+                    description:req.body.description,
+                    name:req.body.name,
+                    document:{
+                        data:req.file.filename,
+                        contentType:'application/pdf'
+                    },
+                    customerId:data._id
+                })
+                await newDoc.save().then((res) => console.log(res)).catch(err=>console.log(err.message))
+               }
+            })
+        }
+    })
+})
+
+//upload a single customer
 app.post("/customers",async(req,res) => {
     const {name,address,dob,partnerUid,userUid,
             gender,childListUid,bloodGroup}=req.body
@@ -378,6 +765,32 @@ app.post("/customers",async(req,res) => {
         res.status(400).json({message:error.message})
     }
             
+})
+
+//upload multiple customers through excel
+app.post("/uploadMultipleCustomers",customerUpload.single('filename'),async(req,res) =>{
+    try {
+        let customers=[]
+        csv().fromFile(req.file.path).then(async(res) => {
+            for(let i=0;i<res.length;i++){
+                customers.push({
+                    name:res[i].name,
+                    address:res[i].address,
+                    dob:new Date(res[i].dob),
+                    partnerUid:res[i].partnerUid,
+                    userUid:res[i].userUid,
+                    childListUid:res[i].childListUid,
+                    gender:res[i].gender,
+                    bloodGroup:res[i].bloodGroup,
+                })
+            }
+            await Customers.insertMany(customers)
+        })
+        
+        res.json({message:'customers imported to db'})
+    } catch (error) {
+        res.json({error:error.message})
+    }
 })
 
 // app.put("/customers/:id/qrHash",async(req,res) => {
@@ -501,13 +914,23 @@ app.post("/lastScanned",async (req,res) => {
 // })
 
 app.delete("/customer/:id",async(req,res) => {
-    const id=req.params.id
-    CustomerQr.findByIdAndDelete(id)
-    .then(result => {
-        res.json({result,deleted:true})
-    }).catch(err => {
-        res.json({error:err.message})
-    })
+    const customerId=req.params.id
+    try {
+        
+        await CustomerGroups.deleteMany({customerId})
+        await CustomerQr.deleteMany({customerId})
+        await Document.deleteMany({customerId})
+        await lastScannedQr.deleteMany({customerId})
+        await Customers.findByIdAndDelete(customerId)
+        .then(result => {
+            res.json({result,deleted:true})
+        }).catch(err => {
+            console.log(err.message)
+        })
+    }catch (error) {
+        res.json({error:error.message})
+    }
+    
 })
 
 app.listen(PORT=1902,() => {
