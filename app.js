@@ -27,6 +27,8 @@ const csv=require('csvtojson')
 // const fbApp=initializeApp()
 var admin=require("firebase-admin")
 const serviceAccount=require("./wesafeclone-8866289e61b3.json")
+// const SAK=require(process.env.SAK)
+const SAK=process.env.SAK
 
 connectDB()
 
@@ -39,6 +41,7 @@ app.use(express.json())
 app.use(bodyParser.urlencoded({extended:true}))
 app.use(express.static(path.resolve(__dirname,'public')))
 
+console.log(SAK)
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://wesafeclone-default-rtdb.firebaseio.com"
@@ -562,9 +565,9 @@ app.post("/partnerUsers/signup",async(req,res) => {
 })
 
 app.post("/partnerUsers/login",async(req,res) => {
-    const {partnerUserUid,password}=req.body
+    const {partnerUserEmail,password}=req.body
     try {
-        let partner=await PartnerUsers.find({partnerUserUid}) 
+        let partner=await PartnerUsers.find({partnerUserEmail}) 
         if(!partner){
             res.status(400).json({message:'user not found'})
         }
@@ -576,14 +579,18 @@ app.post("/partnerUsers/login",async(req,res) => {
 
         const payload={
             loggedInPartnerUser:{
-                id:partnerUserUid
+                id:partner[0].partnerUserUid
             }
         }
 
         jwt.sign(payload,config.get("JWTSecret"),(err,token) => {
             if(err)
                 console.log(err.message)
-            res.status(200).json({token,message:'logged in successfully'})
+            // res.cookie("jwToken",token,{
+            //     expires:new Date(Date.now()+18000000),
+            //     httpOnly:true            
+            // })
+            res.status(200).json({token,message:'logged in successfully',partner,payload})
         })
 
     } catch (error) {
