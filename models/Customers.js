@@ -13,15 +13,15 @@ const customerSchema= new mongoose.Schema({
     },
     partnerUid:{
         type:String,
-        required:true
+        // required:true
     },
     userUid:{
         type:String,
-        required:true
+        // required:true
     },
     childListUid:{
         type:String,
-        required:true
+        // required:true
     },
     gender:{
         type:String,

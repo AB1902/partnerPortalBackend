@@ -23,6 +23,11 @@ const CustomerQr=require("./models/CustomerQr")
 const lastScannedQr=require('./models/LastScannedQr')
 const { db } = require('./models/Partners')
 const csv=require('csvtojson')
+// const { initializeApp } = require('firebase-admin/app');
+// const fbApp=initializeApp()
+var admin=require("firebase-admin")
+const serviceAccount=require("./wesafeclone-8866289e61b3.json")
+
 connectDB()
 
 // const mongouri='mongodb+srv://hector1902:Viennacity.123@cluster0.1fezuvb.mongodb.net/?retryWrites=true&w=majority'
@@ -34,8 +39,37 @@ app.use(express.json())
 app.use(bodyParser.urlencoded({extended:true}))
 app.use(express.static(path.resolve(__dirname,'public')))
 
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://wesafeclone-default-rtdb.firebaseio.com"
+});
+
+var fireDb = admin.firestore();
+
+
+app.get("/fireBaseData",async(req,res) =>{
+    const qrCodeRef=fireDb.collection('QRCode').doc('1uFTMh')
+    const doc=await qrCodeRef.get()
+    if(!doc.exists){
+        res.json({message:'no document'})
+    }else{
+        res.json({document:doc})
+    }
+})
+
+
+// console.log(qrCodes)
+// var ref = fireDb.ref("QRCode");
+// ref.once("value", function(snapshot) {
+//     console.log(snapshot.val());
+// });
+// var ref=fireDb.collection('QRCode')
+// console.log(ref)
+
 const storage=multer.diskStorage({
-    destination:'uploads',
+    destination:(req,file,cb) => {
+      cb(null,'./uploads')  
+    },
     filename:(req,filename,cb) =>{
         cb(null,Date.now()+filename.originalname)
     }
@@ -743,8 +777,14 @@ app.post("/uploadToMultiCustomers",async(req,res) => {
 
 //upload a single customer
 app.post("/customers",async(req,res) => {
-    const {name,address,dob,partnerUid,userUid,
+    let {name,address,dob,partnerUid,userUid,
             gender,childListUid,bloodGroup}=req.body
+    if(!userUid)
+        userUid='undef'
+    if(!childListUid)
+        childListUid='undef'
+    if(!partnerUid)
+        partnerUid='undef'
     const token=req.headers["x-auth-token"]
     const payload=jwt.verify(token,'Viennacity.123')
     
@@ -773,6 +813,7 @@ app.post("/uploadMultipleCustomers",customerUpload.single('filename'),async(req,
         let customers=[]
         csv().fromFile(req.file.path).then(async(res) => {
             for(let i=0;i<res.length;i++){
+                console.log(new Date(res[i].dob))
                 customers.push({
                     name:res[i].name,
                     address:res[i].address,
@@ -871,12 +912,42 @@ app.post("/customers/:id/groups",async(req,res) => {
 app.post("/customers/:id/qr",async(req,res) => {
     const customerId=req.params.id
     const {qrId,qrPin,lastScanned}=req.body
+    const customer=await Customers.find({_id:customerId})
+    const customerGroups=await CustomerGroups.find({customerId})
     try {
-        const customerQr=new CustomerQr({
-            customerId,qrId,qrPin,lastScanned
-        })
-        await customerQr.save()
-        res.json({customerQr})
+        const qrCodeRef=fireDb.collection('QRCode').doc(`${qrId}`)
+        const doc=await qrCodeRef.get()
+        if(!doc.exists){
+            res.json({message:'qr ID not found '})
+        }else{
+            console.log(doc)
+            if(doc._fieldsProto.Consumed.booleanValue===false&&doc._fieldsProto.UserMapped.booleanValue===false&&
+                doc._fieldsProto.PIN.stringValue==='' && doc._fieldsProto.UserID.stringValue===''&& doc._fieldsProto.URL.stringValue===''     
+            ){
+                await qrCodeRef.set({
+                   Consumed:true,
+                   UserMapped:true,
+                   PIN:`${qrPin}`,
+                   UserID:`${customer[0].userUid} ${customer[0].childListUid}`,
+                   URL:`http://www.wesafeqr.com/${qrId}`,
+                   default:true,
+                   Passcode:`${qrId}`,
+                   ID:'',
+                   Label:'',
+                   SubContractor:'qaugnitia' 
+                })
+                const customerQr=new CustomerQr({
+                    customerId,qrId,qrPin,lastScanned
+                })
+                await customerQr.save()
+                res.json({message:'qr code assigned',customerQr,doc,customer,newDoc:qrCodeRef})
+        
+                // res.json({message:'assignable',doc,customer,customerGroups,customerQr,newDoc:qrCodeRef})
+            }
+            else    
+                res.json({message:'not assignable',doc,customer})
+        }
+        
     } catch (error) {
         res.status(400).json({message:error.message})
     }
@@ -902,7 +973,6 @@ app.post("/lastScanned",async (req,res) => {
     }
 
 })
-
 
 
 // app.delete("/doc/:id",async(req,res) => {
