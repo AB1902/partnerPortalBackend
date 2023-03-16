@@ -25,8 +25,10 @@ const { db } = require("./models/Partners");
 const csv = require("csvtojson");
 // const { initializeApp } = require('firebase-admin/app');
 // const fbApp=initializeApp()
-var admin = require("firebase-admin");
-const serviceAccount = require("./wesafeclone-8866289e61b3.json");
+var admin=require("firebase-admin")
+const serviceAccount=require("./wesafeclone-8866289e61b3.json")
+// const SAK=require(process.env.SAK)
+const SAK=process.env.SAK
 
 // aws document configs
 const documentRouter = require("./routes/document-route");
@@ -43,6 +45,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.resolve(__dirname, "public")));
 app.use("/api/wesafe/docs", documentRouter);
 
+console.log(SAK)
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://wesafeclone-default-rtdb.firebaseio.com",
@@ -155,108 +158,34 @@ app.get("/upload", async (req, res) => {
   res.status(200).json({ docs });
 });
 
-app.get("/upload/:id", async (req, res) => {
-  const customerHash = req.params.id;
-  const doc = await Document.find({ customerHash });
-  res.json({ doc });
-});
+app.post("/partnerUsers/login",async(req,res) => {
+    const {partnerUserEmail,password}=req.body
+    try {
+        let partner=await PartnerUsers.find({partnerUserEmail}) 
+        if(!partner){
+            res.status(400).json({message:'user not found'})
+        }
+        //res.json(partner[0].password)
+        const validPassword=await bcrypt.compare(password,partner[0].password)
+        if(!validPassword){
+            res.status(400).json({message:'wrong password'})
+        }
 
-app.get("/customerData", async (req, res) => {
-  var customers = await Customers.aggregate([
-    {
-      $lookup: {
-        from: "customergroups",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "customerGroups",
-      },
-    },
-    {
-      $lookup: {
-        from: "customerqrs",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "customerQrs",
-      },
-    },
-    {
-      $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "customerDocs",
-      },
-    },
-    {
-      $lookup: {
-        from: "lastscanneds",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "lastScanned",
-      },
-    },
-  ]);
-  res.json({ customers });
-});
+        const payload={
+            loggedInPartnerUser:{
+                id:partner[0].partnerUserUid
+            }
+        }
 
-app.get("/customerData/new", async (req, res) => {
-  const page = parseInt(req.query.page);
-  const limit = parseInt(req.query.limit);
-  const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
-
-  var customers = await Customers.aggregate([
-    {
-      $lookup: {
-        from: "customergroups",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "customerGroups",
-      },
-    },
-    {
-      $lookup: {
-        from: "customerqrs",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "customerQrs",
-      },
-    },
-    {
-      $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "customerDocs",
-      },
-    },
-    {
-      $lookup: {
-        from: "lastscanneds",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "lastScanned",
-      },
-    },
-  ]);
-
-  const results = {};
-  if (startIndex > 0) {
-    results.next = {
-      page: page + 1,
-      limit: limit,
-    };
-  }
-  if (endIndex < customers.length) {
-    results.previous = {
-      page: page - 1,
-      limit: limit,
-    };
-  }
-  results.total = customers.length;
-  results.customers = customers.slice(startIndex, endIndex);
-  res.json({ results });
-});
+        jwt.sign(payload,config.get("JWTSecret"),(err,token) => {
+            if(err)
+                console.log(err.message)
+            // res.cookie("jwToken",token,{
+            //     expires:new Date(Date.now()+18000000),
+            //     httpOnly:true            
+            // })
+            res.status(200).json({token,message:'logged in successfully',partner,payload})
+        })
 
 //filter route
 app.post("/customerData/filter", async (req, res) => {
