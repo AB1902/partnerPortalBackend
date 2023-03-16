@@ -204,8 +204,11 @@ exports.deleteUserDocs = async (req, res) => {
     await target.remove();
 
     try {
-      await deleteFileAWS(key);
-    } catch (err) {}
+      const x = await deleteFileAWS(key);
+      console.log(x);
+    } catch (err) {
+      console.log(err);
+    }
 
     res.status(200).json({ ok: true, msg: "Record deleted successfully" });
   } catch (err) {
