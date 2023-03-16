@@ -198,14 +198,14 @@ exports.deleteUserDocs = async (req, res) => {
       target = await Other.findOne({ id: objId });
     }
 
-    // if (!target) {
-    //   return res.status(500).json({ ok: false, msg: "No object with this id" });
-    // }
-    // await target.remove();
+    if (!target) {
+      return res.status(500).json({ ok: false, msg: "No object with this id" });
+    }
+    await target.remove();
 
     try {
       const x = await deleteFileAWS(key);
-      console.log(x, "232323");
+      console.log(x);
     } catch (err) {
       console.log(err);
     }
