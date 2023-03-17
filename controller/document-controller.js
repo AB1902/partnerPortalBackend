@@ -86,20 +86,95 @@ const getFileFromAWS = async () => {
 const fields = {
   driver: {
     name: "driver",
-    entry: ["userId", "state", "country", "expirationDate", "issueDate"],
+    entry: [
+      "userId",
+      "state",
+      "country",
+      "expirationDate",
+      "issueDate",
+      "contentType",
+    ],
   },
   passport: {
     name: "passport",
-    entry: ["userId", "country", "expirationDate", "issueDate"],
+    entry: ["userId", "country", "expirationDate", "issueDate", "contentType"],
   },
-  birth: { name: "birth", entry: ["userId"] },
-  vaccine: { name: "vaccine", entry: ["userId"] },
-  pan: { name: "pan", entry: ["userId"] },
-  aadhar: { name: "aadhar", entry: ["userId"] },
-  other: { name: "other", entry: ["userId", "name"] },
+  birth: { name: "birth", entry: ["userId", "contentType"] },
+  vaccine: { name: "vaccine", entry: ["userId", "contentType"] },
+  pan: { name: "pan", entry: ["userId", "contentType"] },
+  aadhar: { name: "aadhar", entry: ["userId", "contentType"] },
+  other: { name: "other", entry: ["userId", "name", "contentType"] },
 };
 
-exports.getUserAllDocs = async (req, res) => {};
+const getter = (objArray) => {
+  objArray.forEach((curr) => curr.toObject({ getters: true }));
+};
+exports.getUserAllDocs = async (req, res) => {
+  try {
+    const userId = req.params.uid;
+
+    const results = {
+      totalDocs: 0,
+      driver: {
+        len: 0,
+        data: [],
+      },
+      passport: { len: 0, data: [] },
+      birth: { len: 0, data: [] },
+      vaccine: { len: 0, data: [] },
+      pan: { len: 0, data: [] },
+      aadhar: { len: 0, data: [] },
+      other: { len: 0, data: [] },
+    };
+
+    let docs1 = await DriverLicense.find({ userId });
+    getter(docs1);
+    results.driver.len = docs1.length;
+    results.totalDocs += docs1.length;
+    results.driver.data = docs1;
+
+    let docs2 = await Passport.find({ userId });
+    getter(docs2);
+    results.passport.len = docs2.length;
+    results.totalDocs += docs2.length;
+    results.passport.data = docs2;
+
+    let docs3 = await BirthCertificate.find({ userId });
+    getter(docs3);
+    results.birth.len = docs3.length;
+    results.totalDocs += docs3.length;
+    results.birth.data = docs3;
+
+    let docs4 = await VaccineCard.find({ userId });
+    getter(docs4);
+    results.vaccine.len = docs4.length;
+    results.totalDocs += docs4.length;
+    results.vaccine.data = docs4;
+
+    let docs5 = await Pan.find({ userId });
+    getter(docs5);
+    results.pan.len = docs5.length;
+    results.totalDocs += docs5.length;
+    results.pan.data = docs5;
+
+    let docs6 = await Aadhar.find({ userId });
+    getter(docs6);
+    results.aadhar.len = docs6.length;
+    results.totalDocs += docs6.length;
+    results.aadhar.data = docs6;
+
+    let docs7 = await Other.find({ userId });
+    getter(docs7);
+    results.other.len = docs7.length;
+    results.totalDocs += docs7.length;
+    results.other.data = docs7;
+
+    res.json({ ok: true, results });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ ok: false, msg: err.message, err });
+  }
+};
 
 exports.uploadUserDocs = async (req, res) => {
   let filename,

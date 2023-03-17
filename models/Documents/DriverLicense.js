@@ -8,6 +8,7 @@ const schema = new mongoose.Schema({
   country: { type: String, required: true },
   expirationDate: { type: String, required: true },
   issueDate: { type: String, required: true },
+  contentType: { type: String },
 });
 
 module.exports = mongoose.model("DriverLicense", schema);

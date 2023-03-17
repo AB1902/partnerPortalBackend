@@ -7,6 +7,7 @@ const schema = new mongoose.Schema({
   key: { type: String },
   expirationDate: { type: String, required: true },
   issueDate: { type: String, required: true },
+  contentType: { type: String },
 });
 
 module.exports = mongoose.model("Passport", schema);
