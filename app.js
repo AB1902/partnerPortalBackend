@@ -28,11 +28,7 @@ const csv = require("csvtojson");
 var admin = require("firebase-admin");
 const serviceAccount = require("./wesafeclone-8866289e61b3.json");
 // const SAK=require(process.env.SAK)
-<<<<<<< HEAD
 // const SAK=process.env.SAK
-=======
-const SAK = process.env.SAK;
->>>>>>> 48b36ba8bbe49052a9a324c8032dce6cd848b7d9
 
 // aws document configs
 const documentRouter = require("./routes/document-route");
@@ -43,7 +39,6 @@ connectDB();
 // const conn=mongoose.createConnection(mongouri)
 // let gfs
 
-<<<<<<< HEAD
 // const serviceAccount={
 //   "type": process.env.FIREBASE_TYPE,
 //   "project_id": process.env.FIREBASE_PROJECT_ID,
@@ -62,15 +57,6 @@ app.use(express.json())
 app.use(bodyParser.urlencoded({extended:true}))
 app.use(express.static(path.resolve(__dirname,'public')))
 
-=======
-app.use(cors());
-app.use(express.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.resolve(__dirname, "public")));
-app.use("/api/wesafe/docs", documentRouter);
-
-console.log(SAK);
->>>>>>> 48b36ba8bbe49052a9a324c8032dce6cd848b7d9
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://wesafeclone-default-rtdb.firebaseio.com",
@@ -439,7 +425,6 @@ app.post("/partnerUsers/signup", async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 app.post("/partnerUsers/login",async(req,res) => {
     const {partnerUserEmail}=req.body
     const {password}=req.body
@@ -474,35 +459,27 @@ app.post("/partnerUsers/login",async(req,res) => {
     } catch (error) {
         console.log(error)
         res.status(400).json({error:error.message})
-=======
-app.post("/partnerUsers/login", async (req, res) => {
-  const { partnerUserUid, password } = req.body;
-  try {
-    let partner = await PartnerUsers.find({ partnerUserUid });
-    if (!partner) {
-      res.status(400).json({ message: "user not found" });
->>>>>>> 48b36ba8bbe49052a9a324c8032dce6cd848b7d9
     }
     //res.json(partner[0].password)
-    const validPassword = await bcrypt.compare(password, partner[0].password);
-    if (!validPassword) {
-      res.status(400).json({ message: "wrong password" });
-    }
+//     const validPassword = await bcrypt.compare(password, partner[0].password);
+//     if (!validPassword) {
+//       res.status(400).json({ message: "wrong password" });
+//     }
 
-    const payload = {
-      loggedInPartnerUser: {
-        id: partnerUserUid,
-      },
-    };
+//     const payload = {
+//       loggedInPartnerUser: {
+//         id: partnerUserUid,
+//       },
+//     };
 
-    jwt.sign(payload, config.get("JWTSecret"), (err, token) => {
-      if (err) console.log(err.message);
-      res.status(200).json({ token, message: "logged in successfully" });
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(400).json({ error: error.message });
-  }
+//     jwt.sign(payload, config.get("JWTSecret"), (err, token) => {
+//       if (err) console.log(err.message);
+//       res.status(200).json({ token, message: "logged in successfully" });
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(400).json({ error: error.message });
+//   }
 });
 
 app.post("/partners", async (req, res) => {
@@ -945,9 +922,13 @@ app.post("/customers/:id/qr", async (req, res) => {
         });
 
         // res.json({message:'assignable',doc,customer,customerGroups,customerQr,newDoc:qrCodeRef})
-      } else res.json({ message: "not assignable", doc, customer });
+      } 
+      else 
+        res.json({ message: "not assignable", doc, customer });
     }
-<<<<<<< HEAD
+  } catch (error) {
+    res.json({error:error.message})
+  }
 })
 
 app.post("/:id/lastScanned",async (req,res) => {
@@ -984,49 +965,6 @@ app.get("/:id/lastScanned",async (req,res) => {
     }
 })
 
-=======
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-app.post("/lastScanned", async (req, res) => {
-  const {
-    userUid,
-    childListUid,
-    ip_address,
-    latitude,
-    longitude,
-    qrcode,
-    datetime,
-    address,
-    recipients,
-    smstext,
-    permission_given,
-    timestamp,
-  } = req.body;
-  try {
-    const userId = userUid + " " + childListUid;
-    const newLastScanned = new lastScannedQr({
-      userId,
-      ip_address,
-      latitude,
-      longitude,
-      qrcode,
-      datetime,
-      address,
-      recipients,
-      smstext,
-      permission_given,
-      timestamp,
-    });
-    await newLastScanned.save();
-    res.json({ newLastScanned });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
->>>>>>> 48b36ba8bbe49052a9a324c8032dce6cd848b7d9
 
 // app.delete("/doc/:id",async(req,res) => {
 //     const _id=JSON.stringify(req.params.id)
