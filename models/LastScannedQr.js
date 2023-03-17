@@ -2,6 +2,10 @@ const mongoose=require('mongoose')
 
 const lastScannedQr=new mongoose.Schema({
     //customerId
+    customerId:{
+        type:mongoose.Schema.ObjectId,
+        required:true
+    },
     userId:{
         type:String,
         required:true
@@ -23,7 +27,7 @@ const lastScannedQr=new mongoose.Schema({
         required:true
     },
     datetime:{
-        type:String,
+        type:Date,
         required:true
     },
     address:{

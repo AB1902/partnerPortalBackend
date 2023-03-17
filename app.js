@@ -28,7 +28,7 @@ const csv=require('csvtojson')
 var admin=require("firebase-admin")
 const serviceAccount=require("./wesafeclone-8866289e61b3.json")
 // const SAK=require(process.env.SAK)
-const SAK=process.env.SAK
+// const SAK=process.env.SAK
 
 connectDB()
 
@@ -36,12 +36,24 @@ connectDB()
 // const conn=mongoose.createConnection(mongouri)
 // let gfs
 
+// const serviceAccount={
+//   "type": process.env.FIREBASE_TYPE,
+//   "project_id": process.env.FIREBASE_PROJECT_ID,
+//   "private_key_id": process.env.FIREBASE_PRIVATE_KEY_ID,
+//   "private_key": process.env.FIREBASE_PRIVATE_KEY,
+//   "client_email": process.env.FIREBASE_CLIENT_EMAIL,
+//   "client_id": process.env.FIREBASE_CLIENT_ID,
+//   "auth_uri": process.env.FIREBASE_AUTH_URI,
+//   "token_uri": process.env.FIREBASE_TOKEN_URI,
+//   "auth_provider_x509_cert_url": process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
+//   "client_x509_cert_url": process.env.
+// }
+
 app.use(cors())
 app.use(express.json())
 app.use(bodyParser.urlencoded({extended:true}))
 app.use(express.static(path.resolve(__dirname,'public')))
 
-console.log(SAK)
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://wesafeclone-default-rtdb.firebaseio.com"
@@ -565,13 +577,15 @@ app.post("/partnerUsers/signup",async(req,res) => {
 })
 
 app.post("/partnerUsers/login",async(req,res) => {
-    const {partnerUserEmail,password}=req.body
+    const {partnerUserEmail}=req.body
+    const {password}=req.body
     try {
         let partner=await PartnerUsers.find({partnerUserEmail}) 
         if(!partner){
-            res.status(400).json({message:'user not found'})
+            res.json({message:'user not found'})
         }
         //res.json(partner[0].password)
+        console.log(partner)
         const validPassword=await bcrypt.compare(password,partner[0].password)
         if(!validPassword){
             res.status(400).json({message:'wrong password'})
@@ -960,16 +974,18 @@ app.post("/customers/:id/qr",async(req,res) => {
     }
 })
 
-app.post("/lastScanned",async (req,res) => {
+app.post("/:id/lastScanned",async (req,res) => {
     const {
         userUid,childListUid,ip_address,latitude,longitude,
-        qrcode,datetime,address,recipients,smstext,
+        qrcode,address,recipients,smstext,
         permission_given,timestamp
     }=req.body
+    const customerId=req.params.id
+    const datetime=new Date(Date.now())
     try {
         const userId=userUid+' '+childListUid
         const newLastScanned=new lastScannedQr({
-            userId,ip_address,latitude,longitude,
+            customerId,userId,ip_address,latitude,longitude,
             qrcode,datetime,address,recipients,smstext,
             permission_given,timestamp
         })
@@ -979,6 +995,17 @@ app.post("/lastScanned",async (req,res) => {
         res.status(400).json({error:error.message})
     }
 
+})
+
+app.get("/:id/lastScanned",async (req,res) => {
+    
+    const customerId=req.params.id
+    try {
+        let lastScanned=await lastScannedQr.find({customerId})
+        res.json({lastScanned})    
+    } catch (error) {
+        res.json({'error':error.message})
+    }
 })
 
 
