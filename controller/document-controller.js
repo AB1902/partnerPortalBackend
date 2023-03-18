@@ -294,13 +294,13 @@ exports.deleteUserDocs = async (req, res) => {
 
 exports.updateUserDocs = async (req, res) => {
   try {
-    const { objId, docType, key } = req.body;
+    const { objId, docType, key, oldLink } = req.body;
 
     if (fields[docType] === undefined) {
       return res.status(400).json({ ok: false, msg: "no such field" });
     }
 
-    if (!req.file) {
+    if (oldLink === "" && !req.file) {
       return res.status(400).json({ ok: false, msg: "no file attached" });
     }
 
@@ -330,25 +330,34 @@ exports.updateUserDocs = async (req, res) => {
       }
     });
 
+    console.log(oldLink);
     // upload file to AWS
-    const endName = req?.file?.originalname?.slice(
-      req.file.originalname.indexOf(".")
-    );
-    filename = encodeURI(
-      `${req.body.userId}/${Date.now()}_${docType}${endName}`
-    );
-    await uploadFileAWS(filename, req?.file?.buffer);
+    if (!oldLink) {
+      const endName = req?.file?.originalname?.slice(
+        req.file.originalname.indexOf(".")
+      );
+      filename = encodeURI(
+        `${req.body.userId}/${Date.now()}_${docType}${endName}`
+      );
 
-    flag = 1;
+      await uploadFileAWS(filename, req?.file?.buffer);
 
-    target.documentS3Link = `https://wesafe-documents.s3.ap-south-1.amazonaws.com/${filename}`;
-    target.key = filename;
+      flag = 1;
+
+      target.documentS3Link = `https://wesafe-documents.s3.ap-south-1.amazonaws.com/${filename}`;
+      target.key = filename;
+    } else {
+      target.documentS3Link = oldLink;
+      target.key = key;
+    }
 
     const ret = await target.update(target);
 
-    try {
-      await deleteFileAWS(key);
-    } catch (err) {}
+    if (oldLink === "") {
+      try {
+        await deleteFileAWS(key);
+      } catch (err) {}
+    }
 
     res.status(200).json({ ok: true, msg: "Successfully updated the doc" });
   } catch (err) {
