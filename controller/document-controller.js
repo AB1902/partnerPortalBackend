@@ -261,25 +261,24 @@ exports.deleteUserDocs = async (req, res) => {
     let target;
 
     if (docType === "driver") {
-      target = await DriverLicense.findOne({ id: objId });
+      target = await DriverLicense.deleteOne({ _id: objId });
     } else if (docType === "passport") {
-      target = await Passport.findOne({ id: objId });
+      target = await Passport.deleteOne({ _id: objId });
     } else if (docType === "birth") {
-      target = await BirthCertificate.findOne({ id: objId });
+      target = await BirthCertificate.deleteOne({ _id: objId });
     } else if (docType === "vaccine") {
-      target = await VaccineCard.findOne({ id: objId });
+      target = await VaccineCard.deleteOne({ _id: objId });
     } else if (docType === "pan") {
-      target = await Pan.findOne({ id: objId });
+      target = await Pan.deleteOne({ _id: objId });
     } else if (docType === "aadhar") {
-      target = await Aadhar.findOne({ id: objId });
+      target = await Aadhar.deleteOne({ _id: objId });
     } else if (docType === "other") {
-      target = await Other.findOne({ id: objId });
+      target = await Other.deleteOne({ _id: objId });
     }
 
-    if (!target) {
+    if (target.deletedCount === 0) {
       return res.status(500).json({ ok: false, msg: "No object with this id" });
     }
-    await target.remove();
 
     try {
       const x = await deleteFileAWS(key);
@@ -354,7 +353,9 @@ exports.updateUserDocs = async (req, res) => {
       target.key = key;
     }
 
-    const ret = await target.update(target);
+    // const ret = await target.update(target);
+    const ret = await target.save();
+    console.log(ret);
 
     if (oldLink === "") {
       try {
@@ -362,10 +363,12 @@ exports.updateUserDocs = async (req, res) => {
       } catch (err) {}
     }
 
-    res.status(200).json({ ok: true, msg: "Successfully updated the doc" });
+    return res
+      .status(200)
+      .json({ ok: true, msg: "Successfully updated the doc" });
   } catch (err) {
     console.log(err);
-    res.status(500).json({ ok: false, msg: err?.message, err });
+    return res.status(500).json({ ok: false, msg: err?.message, err });
   }
 };
 
