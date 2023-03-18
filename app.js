@@ -27,6 +27,7 @@ const csv=require('csvtojson')
 // const fbApp=initializeApp()
 var admin=require("firebase-admin")
 const serviceAccount=require("./wesafeclone-8866289e61b3.json")
+const fs=require("file-system")
 // const SAK=require(process.env.SAK)
 // const SAK=process.env.SAK
 
@@ -52,7 +53,11 @@ connectDB()
 app.use(cors())
 app.use(express.json())
 app.use(bodyParser.urlencoded({extended:true}))
+app.use(express.urlencoded({extended:false}))
 app.use(express.static(path.resolve(__dirname,'public')))
+app.use(express.static(path.resolve(__dirname,'uploads')))
+app.use('./uploads', express.static('uploads'));
+
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -98,6 +103,17 @@ const storage=multer.diskStorage({
         cb(null,file.originalname)
     }
 })
+//============new route for file upload
+// var fileUploadStorage=multer.diskStorage({
+//     destination:(req,file,cb) => {
+//         cb(null,'./pdfFileUploads')
+//     },
+//     filename:(req,file,cb) => {
+//         cb(null,file.originalname+'-'+Date.now())
+//     }
+// })
+// const pdfFileUpload=multer({storage:fileUploadStorage})
+// //=============
 
 const customerUpload=multer({storage:customerStorage})
 
@@ -740,7 +756,27 @@ app.post("/createGroupAddCustomer/:id",async (req,res) => {
     }
 })
 
-//upload a doucment to a single customer
+//upload a doucment to a single customer 
+//filename => the name of the input
+
+// app.post("/uploadTest",pdfFileUpload.single('file'),async(req,res) => {
+//     console.log(req.file)
+//     console.log(req.body.customerId)
+//     res.send('route working')
+// })
+
+app.get('/getfile/:filename', function(req, response){
+    const filename=req.params.filename
+    console.log(filename)
+    var tempFile=`./uploads/${filename}`;
+    // fs.readFile(tempFile,  (err,data) => {
+    //    response.contentType("application/pdf");
+    //    response.send(data);
+    // });
+    //response.download(`/${filename}`,{root: "./uploads/"})
+    response.contentType("blob").sendFile(`${filename}`,{root: "./uploads"})
+});
+
 app.post("/upload",async(req,res) => {
 
     upload (req,res,(err) =>{
@@ -751,6 +787,7 @@ app.post("/upload",async(req,res) => {
             res.json({'message':"user does not exist"})
         }
         else{
+            console.log(req.file)
             const newDoc=new Document({
                 customerHash:req.body.customerHash,
                 description:req.body.description,

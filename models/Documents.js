@@ -20,6 +20,7 @@ const documentSchema=new mongoose.Schema({
     },
     document:{
         data:Buffer,
+        path:Buffer,
         contentType:String
     },
     timeStamp:{
