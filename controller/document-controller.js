@@ -1,6 +1,6 @@
 require("dotenv").config();
 const aws3 = require("@aws-sdk/client-s3");
-
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 // doc models
 const Aadhar = require("./../models/Documents/Aadhar");
 const BirthCertificate = require("./../models/Documents/BirthCertificate");
@@ -44,15 +44,14 @@ const getAllFilesInAWS = async () => {
   }
 
   return contents;
-
-  res.json({ msg: err.message, err });
 };
 
-const uploadFileAWS = async (filename, buffer) => {
+const uploadFileAWS = async (filename, buffer, ctype) => {
   let uploadParams = {
     Key: filename,
     Bucket: "wesafe-documents",
     Body: buffer,
+    ContentType: ctype,
   };
 
   const command = new aws3.PutObjectCommand(uploadParams);
@@ -180,7 +179,7 @@ exports.uploadUserDocs = async (req, res) => {
   let filename,
     flag = 0;
   try {
-    const { docType } = req.body;
+    const { docType, contentType } = req.body;
 
     if (fields[docType] === undefined) {
       return res.status(400).json({ ok: false, msg: "no such field" });
@@ -225,7 +224,11 @@ exports.uploadUserDocs = async (req, res) => {
     );
 
     console.log(filename);
-    const response = await uploadFileAWS(filename, req.file.buffer);
+    const response = await uploadFileAWS(
+      filename,
+      req.file.buffer,
+      contentType
+    );
 
     flag = 1;
 
@@ -294,7 +297,7 @@ exports.deleteUserDocs = async (req, res) => {
 
 exports.updateUserDocs = async (req, res) => {
   try {
-    const { objId, docType, key, oldLink } = req.body;
+    const { objId, docType, key, oldLink, contentType } = req.body;
 
     if (fields[docType] === undefined) {
       return res.status(400).json({ ok: false, msg: "no such field" });
@@ -340,7 +343,7 @@ exports.updateUserDocs = async (req, res) => {
         `${req.body.userId}/${Date.now()}_${docType}${endName}`
       );
 
-      await uploadFileAWS(filename, req?.file?.buffer);
+      await uploadFileAWS(filename, req?.file?.buffer, contentType);
 
       flag = 1;
 
@@ -363,5 +366,30 @@ exports.updateUserDocs = async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ ok: false, msg: err?.message, err });
+  }
+};
+
+exports.getPresignedURL = async (req, res) => {
+  try {
+    const { key, time } = req.body;
+
+    if (!key || !time) {
+      return res.status(400).json({ ok: false, msg: "missing field" });
+    }
+
+    const command = new aws3.GetObjectCommand({
+      Bucket: "wesafe-documents",
+      Key: key,
+    });
+
+    const url = await getSignedUrl(s3Instance, command, { expiresIn: time });
+
+    res.status(200).json({ ok: true, url });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      msg: err?.message || "Something went wrong!",
+      err,
+    });
   }
 };

@@ -16,5 +16,6 @@ router.post(
   upload.single("file"),
   documentController.updateUserDocs
 );
+router.post("/getSignedURL", documentController.getPresignedURL);
 
 module.exports = router;
