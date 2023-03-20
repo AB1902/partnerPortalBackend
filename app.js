@@ -797,8 +797,9 @@ app.post("/uploadToMultiCustomers", async (req, res) => {
               .save()
           }
         })
+      res.json({message: "uploaded successfully",dataArr});
+
       }
-    res.json({message: "uploaded successfully",dataArr});
     });
    
   } catch (error) {
