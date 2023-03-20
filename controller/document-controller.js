@@ -1,6 +1,6 @@
 require("dotenv").config();
 const aws3 = require("@aws-sdk/client-s3");
-
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 // doc models
 const Aadhar = require("./../models/Documents/Aadhar");
 const BirthCertificate = require("./../models/Documents/BirthCertificate");
@@ -44,15 +44,14 @@ const getAllFilesInAWS = async () => {
   }
 
   return contents;
-
-  res.json({ msg: err.message, err });
 };
 
-const uploadFileAWS = async (filename, buffer) => {
+const uploadFileAWS = async (filename, buffer, ctype) => {
   let uploadParams = {
     Key: filename,
     Bucket: "wesafe-documents",
     Body: buffer,
+    ContentType: ctype,
   };
 
   const command = new aws3.PutObjectCommand(uploadParams);
@@ -180,7 +179,7 @@ exports.uploadUserDocs = async (req, res) => {
   let filename,
     flag = 0;
   try {
-    const { docType } = req.body;
+    const { docType, contentType } = req.body;
 
     if (fields[docType] === undefined) {
       return res.status(400).json({ ok: false, msg: "no such field" });
@@ -225,7 +224,11 @@ exports.uploadUserDocs = async (req, res) => {
     );
 
     console.log(filename);
-    const response = await uploadFileAWS(filename, req.file.buffer);
+    const response = await uploadFileAWS(
+      filename,
+      req.file.buffer,
+      contentType
+    );
 
     flag = 1;
 
@@ -258,25 +261,24 @@ exports.deleteUserDocs = async (req, res) => {
     let target;
 
     if (docType === "driver") {
-      target = await DriverLicense.findOne({ id: objId });
+      target = await DriverLicense.deleteOne({ _id: objId });
     } else if (docType === "passport") {
-      target = await Passport.findOne({ id: objId });
+      target = await Passport.deleteOne({ _id: objId });
     } else if (docType === "birth") {
-      target = await BirthCertificate.findOne({ id: objId });
+      target = await BirthCertificate.deleteOne({ _id: objId });
     } else if (docType === "vaccine") {
-      target = await VaccineCard.findOne({ id: objId });
+      target = await VaccineCard.deleteOne({ _id: objId });
     } else if (docType === "pan") {
-      target = await Pan.findOne({ id: objId });
+      target = await Pan.deleteOne({ _id: objId });
     } else if (docType === "aadhar") {
-      target = await Aadhar.findOne({ id: objId });
+      target = await Aadhar.deleteOne({ _id: objId });
     } else if (docType === "other") {
-      target = await Other.findOne({ id: objId });
+      target = await Other.deleteOne({ _id: objId });
     }
 
-    if (!target) {
+    if (target.deletedCount === 0) {
       return res.status(500).json({ ok: false, msg: "No object with this id" });
     }
-    await target.remove();
 
     try {
       const x = await deleteFileAWS(key);
@@ -294,13 +296,13 @@ exports.deleteUserDocs = async (req, res) => {
 
 exports.updateUserDocs = async (req, res) => {
   try {
-    const { objId, docType, key } = req.body;
+    const { objId, docType, key, oldLink, contentType } = req.body;
 
     if (fields[docType] === undefined) {
       return res.status(400).json({ ok: false, msg: "no such field" });
     }
 
-    if (!req.file) {
+    if (oldLink === "" && !req.file) {
       return res.status(400).json({ ok: false, msg: "no file attached" });
     }
 
@@ -330,29 +332,67 @@ exports.updateUserDocs = async (req, res) => {
       }
     });
 
+    console.log(oldLink);
     // upload file to AWS
-    const endName = req?.file?.originalname?.slice(
-      req.file.originalname.indexOf(".")
-    );
-    filename = encodeURI(
-      `${req.body.userId}/${Date.now()}_${docType}${endName}`
-    );
-    await uploadFileAWS(filename, req?.file?.buffer);
+    if (!oldLink) {
+      const endName = req?.file?.originalname?.slice(
+        req.file.originalname.indexOf(".")
+      );
+      filename = encodeURI(
+        `${req.body.userId}/${Date.now()}_${docType}${endName}`
+      );
 
-    flag = 1;
+      await uploadFileAWS(filename, req?.file?.buffer, contentType);
 
-    target.documentS3Link = `https://wesafe-documents.s3.ap-south-1.amazonaws.com/${filename}`;
-    target.key = filename;
+      flag = 1;
 
-    const ret = await target.update(target);
+      target.documentS3Link = `https://wesafe-documents.s3.ap-south-1.amazonaws.com/${filename}`;
+      target.key = filename;
+    } else {
+      target.documentS3Link = oldLink;
+      target.key = key;
+    }
 
-    try {
-      await deleteFileAWS(key);
-    } catch (err) {}
+    // const ret = await target.update(target);
+    const ret = await target.save();
+    console.log(ret);
 
-    res.status(200).json({ ok: true, msg: "Successfully updated the doc" });
+    if (oldLink === "") {
+      try {
+        await deleteFileAWS(key);
+      } catch (err) {}
+    }
+
+    return res
+      .status(200)
+      .json({ ok: true, msg: "Successfully updated the doc" });
   } catch (err) {
     console.log(err);
-    res.status(500).json({ ok: false, msg: err?.message, err });
+    return res.status(500).json({ ok: false, msg: err?.message, err });
+  }
+};
+
+exports.getPresignedURL = async (req, res) => {
+  try {
+    const { key, time } = req.body;
+
+    if (!key || !time) {
+      return res.status(400).json({ ok: false, msg: "missing field" });
+    }
+
+    const command = new aws3.GetObjectCommand({
+      Bucket: "wesafe-documents",
+      Key: key,
+    });
+
+    const url = await getSignedUrl(s3Instance, command, { expiresIn: time });
+
+    res.status(200).json({ ok: true, url });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      msg: err?.message || "Something went wrong!",
+      err,
+    });
   }
 };

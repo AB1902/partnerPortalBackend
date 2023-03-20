@@ -10,11 +10,12 @@ router.post(
   upload.single("file"),
   documentController.uploadUserDocs
 );
-router.delete("/delete", documentController.deleteUserDocs);
-router.patch(
+router.post("/delete", documentController.deleteUserDocs);
+router.post(
   "/update",
   upload.single("file"),
   documentController.updateUserDocs
 );
+router.post("/getSignedURL", documentController.getPresignedURL);
 
 module.exports = router;
