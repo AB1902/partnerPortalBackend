@@ -781,7 +781,7 @@ app.post("/uploadToMultiCustomers", async (req, res) => {
         console.log(err.message);
       } else {
         const dataArr = JSON.parse(req.body.dataArr);
-        //console.log(dataArr)
+        console.log(dataArr)
         dataArr.forEach(async (data) => {
           if (data.isChecked === true) {
             const newDoc = new Document({
@@ -795,8 +795,6 @@ app.post("/uploadToMultiCustomers", async (req, res) => {
             });
             newDoc
               .save()
-              .then((res) => console.log(res))
-              .catch((err) => console.log(err.message));
           }
         })
       }
@@ -805,6 +803,13 @@ app.post("/uploadToMultiCustomers", async (req, res) => {
   } catch (error) {
     res.json({error: error.message});
   }
+  // try {
+  //   const dataArr = JSON.parse(req.body.dataArr)
+  //   console.log(dataArr)
+  //   res.json({dataArr})
+  // } catch (error) {
+  //   res.json({error:error.message}) 
+  // }
  
   
 });
