@@ -215,6 +215,7 @@ app.get("/customerData", async (req, res) => {
       },
     },
   ]);
+  
   res.json({ customers });
 });
 
@@ -259,22 +260,22 @@ app.get("/customerData/new", async (req, res) => {
     },
   ]);
 
-  const results = {};
-  if (startIndex > 0) {
-    results.next = {
-      page: page + 1,
-      limit: limit,
-    };
-  }
-  if (endIndex < customers.length) {
-    results.previous = {
-      page: page - 1,
-      limit: limit,
-    };
-  }
-  results.total = customers.length;
-  results.customers = customers.slice(startIndex, endIndex);
-  res.json({ results });
+    const results = {};
+    if (startIndex > 0) {
+      results.next = {
+        page: page + 1,
+        limit: limit,
+      };
+    }
+    if (endIndex < customers.length) {
+      results.previous = {
+        page: page - 1,
+        limit: limit,
+      };
+    }
+    results.total = customers.length;
+    results.customers = customers.slice(startIndex, endIndex);
+    res.json({ results });
 });
 
 //filter route
@@ -833,8 +834,11 @@ app.post("/customers", async (req, res) => {
     console.log("not authorized");
   }
   try {
+    let customers=await Customers.find()
     let customer = await Customers.find({ userUid });
-
+    let date=(new Date(Date.now())).toString();
+    let dateRegistered=date.substring(4,15);
+    let portalId=date.substring(11,15)+(customers.length+1).toString();
     customer = new Customers({
       name,
       address,
@@ -844,6 +848,8 @@ app.post("/customers", async (req, res) => {
       userUid,
       gender,
       bloodGroup,
+      dateRegistered,
+      portalId
     });
     await customer.save();
     res.status(200).json({ message: "customer added", customer });

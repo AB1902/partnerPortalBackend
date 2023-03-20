@@ -29,6 +29,12 @@ const customerSchema= new mongoose.Schema({
     bloodGroup:{
         type:String,
     },
+    dateRegistered:{
+        type:String
+    },
+    portalId:{
+        type:String
+    }
     // qrStatus:[
     // {
     //     id:{
