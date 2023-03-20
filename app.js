@@ -56,6 +56,7 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.resolve(__dirname, "public")));
+// app.use(express.static(path.resolve(__dirname, "uploads")));
 app.use("/api/wesafe/docs", documentRouter);
 
 
@@ -766,7 +767,7 @@ app.post("/upload", async (req, res) => {
             })
             newDoc
               .save()
-              .then(() => res.send('success') )
+              .then(() => res.json({message : "success", newDoc}) )
               .catch(err => console.log(err.message));
         }
     })
@@ -774,31 +775,38 @@ app.post("/upload", async (req, res) => {
 
 //upload a doucment to multiple customers
 app.post("/uploadToMultiCustomers", async (req, res) => {
-  upload(req, res, (err) => {
-    if (err) {
-      console.log(err.message);
-    } else {
-      const dataArr = JSON.parse(req.body.dataArr);
-      //console.log(dataArr)
-      dataArr.forEach(async (data) => {
-        if (data.isChecked === true) {
-          const newDoc = new Document({
-            description: req.body.description,
-            name: req.body.name,
-            document: {
-              data: req.file.filename,
-              contentType: "application/pdf",
-            },
-            customerId: data._id,
-          });
-          await newDoc
-            .save()
-            .then((res) => console.log(res))
-            .catch((err) => console.log(err.message));
-        }
-      });
-    }
-  });
+  try {
+    upload(req, res, (err) => {
+      if (err) {
+        console.log(err.message);
+      } else {
+        const dataArr = JSON.parse(req.body.dataArr);
+        //console.log(dataArr)
+        dataArr.forEach(async (data) => {
+          if (data.isChecked === true) {
+            const newDoc = new Document({
+              description: req.body.description,
+              name: req.body.name,
+              document: {
+                data: req.file.filename,
+                contentType: "application/pdf",
+              },
+              customerId: data._id,
+            });
+            newDoc
+              .save()
+              .then((res) => console.log(res))
+              .catch((err) => console.log(err.message));
+          }
+        })
+      }
+    });
+    res.json({message: "uploaded successfully"});
+  } catch (error) {
+    res.json({error: error.message});
+  }
+ 
+  
 });
 
 //upload a single customer
