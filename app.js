@@ -777,29 +777,30 @@ app.post("/upload", async (req, res) => {
 app.post("/uploadToMultiCustomers", async (req, res) => {
   try {
     upload(req, res, (err) => {
-      // if (err) {
-      //   console.log(err.message);
-      // } else {
+      if (err) {
+        console.log(err.message);
+      } else {
         const dataArr = JSON.parse(req.body.dataArr);
         console.log(dataArr)
-    //     dataArr.forEach(async (data) => {
-    //       if (data.isChecked === true) {
-    //         const newDoc = new Document({
-    //           description: req.body.description,
-    //           name: req.body.name,
-    //           document: {
-    //             data: req.file.filename,
-    //             contentType: "application/pdf",
-    //           },
-    //           customerId: data._id,
-    //         });
-    //         newDoc
-    //           .save()
-    //       }
-    //     })
-    //   }
-    });
+        dataArr.forEach(async (data) => {
+          if (data.isChecked === true) {
+            const newDoc = new Document({
+              description: req.body.description,
+              name: req.body.name,
+              document: {
+                data: req.file.filename,
+                contentType: "application/pdf",
+              },
+              customerId: data._id,
+            });
+            newDoc
+              .save()
+          }
+        })
+      }
     res.json({message: "uploaded successfully",dataArr});
+    });
+   
   } catch (error) {
     res.json({error: error.message});
   }
