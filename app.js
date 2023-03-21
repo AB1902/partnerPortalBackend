@@ -215,9 +215,57 @@ app.get("/customerData", async (req, res) => {
       },
     },
   ]);
-  
+
   res.json({ customers });
 });
+
+app.get("/search",async(req,res) =>{
+  var searchKey=req.query.searchKey.toLowerCase().trim()
+  console.log(searchKey)
+  var customers = await Customers.aggregate([
+    {
+      $lookup: {
+        from: "customergroups",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerGroups",
+      },
+    },
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "documents",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerDocs",
+      },
+    },
+    {
+      $lookup: {
+        from: "lastscanneds",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "lastScanned",
+      },
+    },
+  ]);
+
+  let filteredData=customers?.filter((data) => {
+    const customerData= Object.keys(data).some(key => {
+        return data[key]?.toString().toLowerCase().includes(searchKey) 
+    })
+    return customerData
+  })
+
+  res.json({customers:filteredData})
+})
 
 app.get("/customerData/new", async (req, res) => {
   const page = parseInt(req.query.page);
@@ -280,9 +328,9 @@ app.get("/customerData/new", async (req, res) => {
 
 //filter route
 app.post("/customerData/filter", async (req, res) => {
-  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData } =
+  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, } =
     req.body;
-  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData);
+  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData,);
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -317,8 +365,19 @@ app.post("/customerData/filter", async (req, res) => {
       },
     },
   ]);
-
+  
   let filteredData = [];
+
+  // if(registerDateStart!=='from' && registerDateEnd!=='to'){
+  //   customers=await Customers.find({
+  //       created_on: {
+  //         $gte: new Date(registerDateStart), 
+  //         $lt: new Date(registerDateEnd)
+  //       }
+  //   })
+  //   console.log(customers)
+  // }
+
   if (groupSelect !== "All") {
     customers.forEach((customer) => {
       customer.customerGroups.forEach((group) => {
@@ -838,7 +897,10 @@ app.post("/customers", async (req, res) => {
     let customer = await Customers.find({ userUid });
     let date=(new Date(Date.now())).toString();
     let dateRegistered=date.substring(4,15);
-    let portalId=date.substring(11,15)+(customers.length+1).toString();
+    let portalId=date.substring(11,15)+date.substring(8,10)+(customers.length+1).toString();
+    console.log(dateRegistered)
+    console.log(date)
+    console.log(portalId)
     customer = new Customers({
       name,
       address,
