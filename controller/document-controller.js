@@ -217,7 +217,7 @@ exports.uploadUserDocs = async (req, res) => {
 
     // upload file to AWS
     const endName = req.file.originalname.slice(
-      req.file.originalname.indexOf(".")
+      req.file.originalname.lastIndexOf(".")
     );
     filename = encodeURI(
       `${req.body.userId}/${Date.now()}_${docType}${endName}`
