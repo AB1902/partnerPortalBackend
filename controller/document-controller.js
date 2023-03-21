@@ -309,24 +309,30 @@ exports.updateUserDocs = async (req, res) => {
     let target;
 
     if (docType === "driver") {
-      target = await DriverLicense.findOne({ id: objId });
+      target = await DriverLicense.findById({ _id: objId });
     } else if (docType === "passport") {
-      target = await Passport.findOne({ id: objId });
+      target = await Passport.findById({ _id: objId });
     } else if (docType === "birth") {
-      target = await BirthCertificate.findOne({ id: objId });
+      target = await BirthCertificate.findById({ _id: objId });
     } else if (docType === "vaccine") {
-      target = await VaccineCard.findOne({ id: objId });
+      target = await VaccineCard.findById({ _id: objId });
     } else if (docType === "pan") {
-      target = await Pan.findOne({ id: objId });
+      target = await Pan.findById({ _id: objId });
     } else if (docType === "aadhar") {
-      target = await Aadhar.findOne({ id: objId });
+      target = await Aadhar.findById({ _id: objId });
     } else if (docType === "other") {
-      target = await Other.findOne({ id: objId });
+      target = await Other.findById({ _id: objId });
     }
+
+    if (!target) {
+      return res.status(500).json({ msg: "No record found" });
+    }
+
+    const finalObj = {};
 
     fields[docType].entry.forEach((curr) => {
       if (req.body[curr]) {
-        target[curr] = req.body[curr];
+        finalObj[curr] = req.body[curr];
       } else {
         return res.status(400).json({ ok: false, msg: "missing field" });
       }
@@ -336,7 +342,7 @@ exports.updateUserDocs = async (req, res) => {
     // upload file to AWS
     if (!oldLink) {
       const endName = req?.file?.originalname?.slice(
-        req.file.originalname.indexOf(".")
+        req.file.originalname.lastIndexOf(".")
       );
       filename = encodeURI(
         `${req.body.userId}/${Date.now()}_${docType}${endName}`
@@ -346,15 +352,30 @@ exports.updateUserDocs = async (req, res) => {
 
       flag = 1;
 
-      target.documentS3Link = `https://wesafe-documents.s3.ap-south-1.amazonaws.com/${filename}`;
-      target.key = filename;
+      finalObj.documentS3Link = `https://wesafe-documents.s3.ap-south-1.amazonaws.com/${filename}`;
+      finalObj.key = filename;
     } else {
-      target.documentS3Link = oldLink;
-      target.key = key;
+      finalObj.documentS3Link = oldLink;
+      finalObj.key = key;
     }
-
-    // const ret = await target.update(target);
-    const ret = await target.save();
+    console.log("----------------------");
+    console.log(finalObj);
+    let ret;
+    if (docType === "driver") {
+      ret = await DriverLicense.findOneAndUpdate({ _id: objId }, finalObj);
+    } else if (docType === "passport") {
+      ret = await Passport.findOneAndUpdate({ _id: objId }, finalObj);
+    } else if (docType === "birth") {
+      ret = await BirthCertificate.findOneAndUpdate({ _id: objId }, finalObj);
+    } else if (docType === "vaccine") {
+      ret = await VaccineCard.findOneAndUpdate({ _id: objId }, finalObj);
+    } else if (docType === "pan") {
+      ret = await Pan.findOneAndUpdate({ _id: objId }, finalObj);
+    } else if (docType === "aadhar") {
+      ret = await Aadhar.findOneAndUpdate({ _id: objId }, finalObj);
+    } else if (docType === "other") {
+      ret = await Other.findOneAndUpdate({ _id: objId }, finalObj);
+    }
     console.log(ret);
 
     if (oldLink === "") {
