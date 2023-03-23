@@ -6,8 +6,8 @@ const schema = new mongoose.Schema({
   userId: { type: String, required: true },
   state: { type: String, required: true },
   country: { type: String, required: true },
-  expirationDate: { type: String, required: true },
-  issueDate: { type: String, required: true },
+  expirationDate: { type: String },
+  issueDate: { type: String },
   contentType: { type: String },
 });
 

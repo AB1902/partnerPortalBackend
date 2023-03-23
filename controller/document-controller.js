@@ -191,11 +191,11 @@ exports.uploadUserDocs = async (req, res) => {
     const finalObj = {};
 
     fields[docType].entry.forEach((curr) => {
-      if (req.body[curr]) {
-        finalObj[curr] = req.body[curr];
-      } else {
-        return res.status(400).json({ ok: false, msg: "missing field" });
-      }
+      // if (req.body[curr]) {
+      finalObj[curr] = req.body[curr];
+      // } else {
+      //   return res.status(400).json({ ok: false, msg: "missing field" });
+      // }
     });
 
     let newDoc;
