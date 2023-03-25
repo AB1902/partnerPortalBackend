@@ -1318,7 +1318,7 @@ app.post("/admin/filter",async(req,res) => {
     if(registerDateStart!=='from' && registerDateEnd!=='to'){
       customers=customers.filter((data) => {
         if(data.dateRegistered){
-          if(date1.getTime()<(new Date(data.dateRegistered).getTime()) && date2.getTime()>(new Date(data.dateRegistered)).getTime() )
+          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
             return data
         }
       })
