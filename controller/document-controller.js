@@ -193,9 +193,10 @@ exports.uploadUserDocs = async (req, res) => {
     fields[docType].entry.forEach((curr) => {
       if (req.body[curr]) {
         finalObj[curr] = req.body[curr];
-      } else {
-        return res.status(400).json({ ok: false, msg: "missing field" });
       }
+      // else {
+      //   return res.status(400).json({ ok: false, msg: "missing field" });
+      // }
     });
 
     let newDoc;
@@ -333,9 +334,10 @@ exports.updateUserDocs = async (req, res) => {
     fields[docType].entry.forEach((curr) => {
       if (req.body[curr]) {
         finalObj[curr] = req.body[curr];
-      } else {
-        return res.status(400).json({ ok: false, msg: "missing field" });
       }
+      // else {
+      // return res.status(400).json({ ok: false, msg: "missing field" });
+      // }
     });
 
     console.log(oldLink);
@@ -358,8 +360,7 @@ exports.updateUserDocs = async (req, res) => {
       finalObj.documentS3Link = oldLink;
       finalObj.key = key;
     }
-    console.log("----------------------");
-    console.log(finalObj);
+
     let ret;
     if (docType === "driver") {
       ret = await DriverLicense.findOneAndUpdate({ _id: objId }, finalObj);
@@ -376,7 +377,6 @@ exports.updateUserDocs = async (req, res) => {
     } else if (docType === "other") {
       ret = await Other.findOneAndUpdate({ _id: objId }, finalObj);
     }
-    console.log(ret);
 
     if (oldLink === "") {
       try {
