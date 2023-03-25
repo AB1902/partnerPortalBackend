@@ -1315,6 +1315,14 @@ app.post("/admin/filter",async(req,res) => {
   }
 
   if (partnerSelect !== "All") {
+    if(registerDateStart!=='from' && registerDateEnd!=='to'){
+      customers=customers.filter((data) => {
+        if(data.dateRegistered){
+          if(date1.getTime()<(new Date(data.dateRegistered).getTime()) && date2.getTime()>(new Date(data.dateRegistered)).getTime() )
+            return data
+        }
+      })
+    }
     customers.forEach((customer) => {
       if(customer.partnerUid===partnerId) filteredData.push(customer)
       if (qrAssigned === "Yes") {
@@ -1337,6 +1345,14 @@ app.post("/admin/filter",async(req,res) => {
       }
     });
   } else {
+    if(registerDateStart!=='from' && registerDateEnd!=='to'){
+      filteredData=customers.filter((data) => {
+        if(data.dateRegistered){
+          if(date1.getTime()<(new Date(data.dateRegistered).getTime()) && date2.getTime()>(new Date(data.dateRegistered)).getTime() )
+            return data
+        }
+      })
+    }
     if (qrAssigned === "Yes") {
       customers.forEach((customer) => {
         if (customer.customerQrs.length > 0) filteredData.push(customer);
