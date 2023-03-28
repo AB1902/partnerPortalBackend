@@ -32,6 +32,7 @@ const serviceAccount = require("./wesafeclone-8866289e61b3.json");
 
 // aws document configs
 const documentRouter = require("./routes/document-route");
+const visibilityRouter = require("./routes/visibility-route");
 
 connectDB();
 
@@ -58,8 +59,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.resolve(__dirname, "public")));
 // app.use(express.static(path.resolve(__dirname, "uploads")));
 app.use("/api/wesafe/docs", documentRouter);
-
-
+app.use("/api/wesafe/visibility", visibilityRouter);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -103,7 +103,6 @@ var customerStorage = multer.diskStorage({
     cb(null, file.originalname);
   },
 });
-
 
 const customerUpload = multer({ storage: customerStorage });
 
@@ -219,9 +218,9 @@ app.get("/customerData", async (req, res) => {
   res.json({ customers });
 });
 
-app.get("/search",async(req,res) =>{
-  var searchKey=req.query.searchKey.toLowerCase().trim()
-  console.log(searchKey)
+app.get("/search", async (req, res) => {
+  var searchKey = req.query.searchKey.toLowerCase().trim();
+  console.log(searchKey);
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -257,15 +256,15 @@ app.get("/search",async(req,res) =>{
     },
   ]);
 
-  let filteredData=customers?.filter((data) => {
-    const customerData= Object.keys(data).some(key => {
-        return data[key]?.toString().toLowerCase().includes(searchKey) 
-    })
-    return customerData
-  })
+  let filteredData = customers?.filter((data) => {
+    const customerData = Object.keys(data).some((key) => {
+      return data[key]?.toString().toLowerCase().includes(searchKey);
+    });
+    return customerData;
+  });
 
-  res.json({customers:filteredData})
-})
+  res.json({ customers: filteredData });
+});
 
 app.get("/customerData/new", async (req, res) => {
   const page = parseInt(req.query.page);
@@ -308,29 +307,29 @@ app.get("/customerData/new", async (req, res) => {
     },
   ]);
 
-    const results = {};
-    if (startIndex > 0) {
-      results.next = {
-        page: page + 1,
-        limit: limit,
-      };
-    }
-    if (endIndex < customers.length) {
-      results.previous = {
-        page: page - 1,
-        limit: limit,
-      };
-    }
-    results.total = customers.length;
-    results.customers = customers.slice(startIndex, endIndex);
-    res.json({ results });
+  const results = {};
+  if (startIndex > 0) {
+    results.next = {
+      page: page + 1,
+      limit: limit,
+    };
+  }
+  if (endIndex < customers.length) {
+    results.previous = {
+      page: page - 1,
+      limit: limit,
+    };
+  }
+  results.total = customers.length;
+  results.customers = customers.slice(startIndex, endIndex);
+  res.json({ results });
 });
 
 //filter route
 app.post("/customerData/filter", async (req, res) => {
-  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, } =
+  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData } =
     req.body;
-  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData,);
+  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData);
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -365,13 +364,13 @@ app.post("/customerData/filter", async (req, res) => {
       },
     },
   ]);
-  
+
   let filteredData = [];
 
   // if(registerDateStart!=='from' && registerDateEnd!=='to'){
   //   customers=await Customers.find({
   //       created_on: {
-  //         $gte: new Date(registerDateStart), 
+  //         $gte: new Date(registerDateStart),
   //         $lt: new Date(registerDateEnd)
   //       }
   //   })
@@ -797,41 +796,39 @@ app.post("/createGroupAddCustomer/:id", async (req, res) => {
   }
 });
 
-//upload a doucment to a single customer 
+//upload a doucment to a single customer
 
-app.get('/getfile/:filename', function(req, response){
-    const filename=req.params.filename;
-    var tempFile=`./uploads/${filename}`;
-    response.contentType("blob").sendFile(`${filename}`,{root: "./uploads"});
+app.get("/getfile/:filename", function (req, response) {
+  const filename = req.params.filename;
+  var tempFile = `./uploads/${filename}`;
+  response.contentType("blob").sendFile(`${filename}`, { root: "./uploads" });
 });
 
 app.post("/upload", async (req, res) => {
-
-    upload (req, res, (err) => {
-        if(err){
-            console.log(err.message);
-        }
-        if(!req.body.customerId){
-            res.json({ message : "user does not exist"});
-        }
-        else{
-            const newDoc = new Document({
-                customerHash: req.body.customerHash,
-                description: req.body.description,
-                name: req.body.name,
-                document: {
-                    data: req.file.filename,
-                    contentType: "application/pdf",
-                },
-                customerId: req.body.customerId,
-            })
-            newDoc
-              .save()
-              .then(() => res.json({message : "success", newDoc}) )
-              .catch(err => console.log(err.message));
-        }
-    })
-})
+  upload(req, res, (err) => {
+    if (err) {
+      console.log(err.message);
+    }
+    if (!req.body.customerId) {
+      res.json({ message: "user does not exist" });
+    } else {
+      const newDoc = new Document({
+        customerHash: req.body.customerHash,
+        description: req.body.description,
+        name: req.body.name,
+        document: {
+          data: req.file.filename,
+          contentType: "application/pdf",
+        },
+        customerId: req.body.customerId,
+      });
+      newDoc
+        .save()
+        .then(() => res.json({ message: "success", newDoc }))
+        .catch((err) => console.log(err.message));
+    }
+  });
+});
 
 //upload a doucment to multiple customers
 app.post("/uploadToMultiCustomers", async (req, res) => {
@@ -841,7 +838,7 @@ app.post("/uploadToMultiCustomers", async (req, res) => {
         console.log(err.message);
       } else {
         const dataArr = JSON.parse(req.body.dataArr);
-        console.log(dataArr)
+        console.log(dataArr);
         dataArr.forEach(async (data) => {
           if (data.isChecked === true) {
             const newDoc = new Document({
@@ -853,17 +850,14 @@ app.post("/uploadToMultiCustomers", async (req, res) => {
               },
               customerId: data._id,
             });
-            newDoc
-              .save()
+            newDoc.save();
           }
-        })
-      res.json({message: "uploaded successfully",dataArr});
-
+        });
+        res.json({ message: "uploaded successfully", dataArr });
       }
     });
-   
   } catch (error) {
-    res.json({error: error.message});
+    res.json({ error: error.message });
   }
 });
 
@@ -893,14 +887,17 @@ app.post("/customers", async (req, res) => {
     console.log("not authorized");
   }
   try {
-    let customers=await Customers.find()
+    let customers = await Customers.find();
     let customer = await Customers.find({ userUid });
-    let date=(new Date(Date.now())).toString();
-    let dateRegistered=date.substring(4,15);
-    let portalId=date.substring(11,15)+date.substring(8,10)+(customers.length+1).toString();
-    console.log(dateRegistered)
-    console.log(date)
-    console.log(portalId)
+    let date = new Date(Date.now()).toString();
+    let dateRegistered = date.substring(4, 15);
+    let portalId =
+      date.substring(11, 15) +
+      date.substring(8, 10) +
+      (customers.length + 1).toString();
+    console.log(dateRegistered);
+    console.log(date);
+    console.log(portalId);
     customer = new Customers({
       name,
       address,
@@ -911,7 +908,7 @@ app.post("/customers", async (req, res) => {
       gender,
       bloodGroup,
       dateRegistered,
-      portalId
+      portalId,
     });
     await customer.save();
     res.status(200).json({ message: "customer added", customer });
