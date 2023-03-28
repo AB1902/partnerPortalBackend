@@ -155,6 +155,20 @@ app.delete("/doc/:id", async (req, res) => {
 app.delete("/qr/:id", async (req, res) => {
   const id = req.params.id;
   CustomerQr.findByIdAndDelete(id)
+  // const qrCodeRef = fireDb.collection("QRCode").doc(`${id}`);
+  // const doc = await qrCodeRef.get();
+  // await qrCodeRef.set({
+  //         Consumed: false,
+  //         UserMapped: false,
+  //         PIN: "",
+  //         UserID: "",
+  //         URL: "",
+  //         default: false,
+  //         Passcode: "",
+  //         ID: "",
+  //         Label: "",
+  //         SubContractor: "",
+  //       });
     .then((result) => {
       res.json({ result, deleted: true });
     })
@@ -1112,6 +1126,19 @@ app.post("/:id/lastScanned", async (req, res) => {
   } = req.body;
   const customerId = req.params.id;
   const datetime = new Date(Date.now());
+  console.log({
+    userUid,
+    childListUid,
+    ip_address,
+    latitude,
+    longitude,
+    qrcode,
+    address,
+    recipients,
+    smstext,
+    permission_given,
+    timestamp,
+  })
   try {
     const userId = userUid + " " + childListUid;
     const newLastScanned = new lastScannedQr({
@@ -1131,7 +1158,7 @@ app.post("/:id/lastScanned", async (req, res) => {
     await newLastScanned.save();
     res.json({ newLastScanned });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ "error": error.message });
   }
 });
 
@@ -1171,6 +1198,285 @@ app.delete("/customer/:id", async (req, res) => {
     res.json({ error: error.message });
   }
 });
+
+app.get("/admin",async(req,res) => {
+  const page = parseInt(req.query.page);
+  const limit = parseInt(req.query.limit);
+  const startIndex = (page - 1) * limit;
+  const endIndex = page * limit;
+
+  var customers = await Customers.aggregate([
+    {
+      $lookup: {
+        from: "customergroups",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerGroups",
+      },
+    },
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "documents",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerDocs",
+      },
+    },
+    {
+      $lookup: {
+        from: "lastscanneds",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "lastScanned",
+      },
+    },
+  ]).sort({"created_at": 1});
+
+    const results = {};
+    if (startIndex > 0) {
+      results.next = {
+        page: page + 1,
+        limit: limit,
+      };
+    }
+    if (endIndex < customers.length) {
+      results.previous = {
+        page: page - 1,
+        limit: limit,
+      };
+    }
+    results.total = customers.length;
+    results.customers = customers.slice(startIndex, endIndex);
+    res.json({ results });
+})
+
+app.post("/admin/filter",async(req,res) => {
+  const { partnerSelect,qrAssigned,qrScanData,registerDateStart,registerDateEnd,partnerId } =
+    req.body;
+  date1=new Date(registerDateStart)
+  date2=new Date(registerDateEnd)
+  console.log(partnerSelect,qrAssigned,qrScanData, date1, date2,partnerId);
+  var partners=await Partners.find()
+  var customers = await Customers.aggregate([
+    {
+      $lookup: {
+        from: "customergroups",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerGroups",
+      },
+    },
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "documents",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerDocs",
+      },
+    },
+    {
+      $lookup: {
+        from: "lastscanneds",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "lastScanned",
+      },
+    },
+  ]);
+  
+  let filteredData = [];
+
+  if(registerDateStart!=='from' && registerDateEnd!=='to'){
+    customers=customers.filter((data) => {
+      if(data.dateRegistered){
+        if(date1.getTime()<(new Date(data.dateRegistered).getTime()) && date2.getTime()>(new Date(data.dateRegistered)).getTime() )
+          return data
+      }
+    })
+  }
+
+  if (partnerSelect !== "All") {
+    if(registerDateStart!=='from' && registerDateEnd!=='to'){
+      customers=customers.filter((data) => {
+        if(data.dateRegistered){
+          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+            return data
+        }
+      })
+    }
+    customers.forEach((customer) => {
+      if(customer.partnerUid===partnerId) filteredData.push(customer)
+      if (qrAssigned === "Yes") {
+        filteredData = filteredData.filter((data) => {
+          if (data.customerQrs.length > 0) return data;
+        });
+      } else if (qrAssigned == "No") {
+        filteredData = filteredData.filter((data) => {
+          if (data.customerQrs.length === 0) return data;
+        });
+      }
+      if (qrScanData === "Yes") {
+        filteredData = filteredData.filter((data) => {
+          if (data.lastScanned?.length > 0) return data;
+        });
+      } else if (qrScanData == "No") {
+        filteredData = filteredData.filter((data) => {
+          if (data.lastScanned?.length === 0) return data;
+        });
+      }
+    });
+  } else {
+    if(registerDateStart!=='from' && registerDateEnd!=='to'){
+      filteredData=customers.filter((data) => {
+        if(data.dateRegistered){
+          if(date1.getTime()<(new Date(data.dateRegistered).getTime()) && date2.getTime()>(new Date(data.dateRegistered)).getTime() )
+            return data
+        }
+      })
+    }
+    if (qrAssigned === "Yes") {
+      customers.forEach((customer) => {
+        if (customer.customerQrs.length > 0) filteredData.push(customer);
+      });
+      if (qrScanData === "Yes") {
+        filteredData = filteredData.filter((data) => {
+          if (data.lastScanned?.length > 0) return data;
+        });
+      } else if (qrScanData == "No") {
+        filteredData = filteredData.filter((data) => {
+          if (data.lastScanned?.length === 0) return data;
+        });
+      }
+    } else if (qrAssigned === "No") {
+      customers.forEach((customer) => {
+        if (customer.customerQrs.length === 0) filteredData.push(customer);
+      });
+      if (qrScanData === "Yes") {
+        filteredData = filteredData.filter((data) => {
+          if (data.lastScanned?.length > 0) return data;
+        });
+      } else if (qrScanData == "No") {
+        filteredData = filteredData.filter((data) => {
+          if (data.lastScanned?.length === 0) return data;
+        });
+      }
+    } else if (qrScanData === "Yes") {
+      customers.forEach((customer) => {
+        if (customer.lastScanned?.length > 0) filteredData.push(customer);
+      });
+    } else if (qrAssigned === "No") {
+      customers.forEach((customer) => {
+        if (customer.customerQrs.length === 0) filteredData.push(customer);
+      });
+    } 
+  }
+  console.log(filteredData);
+
+  res.json({ filteredData,partners });
+})
+
+app.get("/admin/search",async(req,res) => {
+  var searchKey=req.query.searchKey.toLowerCase().trim()
+  console.log(searchKey)
+  var customers = await Customers.aggregate([
+    {
+      $lookup: {
+        from: "customergroups",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerGroups",
+      },
+    },
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "documents",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerDocs",
+      },
+    },
+    {
+      $lookup: {
+        from: "lastscanneds",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "lastScanned",
+      },
+    },
+  ]);
+
+  let filteredData=customers?.filter((data) => {
+    const customerData= Object.keys(data).some(key => {
+        return data[key]?.toString().toLowerCase().includes(searchKey) 
+    })
+    return customerData
+  })
+
+  res.json({customers:filteredData})
+})
+
+app.get("/admin/all",async(req,res) => {
+  var customers = await Customers.aggregate([
+    {
+      $lookup: {
+        from: "customergroups",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerGroups",
+      },
+    },
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "documents",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerDocs",
+      },
+    },
+    {
+      $lookup: {
+        from: "lastscanneds",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "lastScanned",
+      },
+    },
+  ]);
+
+  res.json({ customers });
+})
 
 app.listen((PORT = 1902), () => {
   console.log("server started");

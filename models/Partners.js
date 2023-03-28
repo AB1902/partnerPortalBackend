@@ -18,6 +18,9 @@ const partnerSchema=new mongoose.Schema({
     maxGroups:{
         type:String
     },
+    type:{
+        type:String
+    }
 })
 
 module.exports=mongoose.model('Partner',partnerSchema)
