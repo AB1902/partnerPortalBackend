@@ -1538,37 +1538,48 @@ app.post("/admin/scan/filter",async(req,res) =>{
   res.json({scanData,message:'working'})
 })
 
-// app.get("/admin/scan/search",async(req,res) => {
-//   var searchKey=req.query.searchKey.toLowerCase().trim()
-//   console.log(searchKey)
-//   var scanData = await lastScannedQr.aggregate([
-//     {
-//       $lookup: {
-//         from: "customerqrs",
-//         localField: "customerId",
-//         foreignField: "customerId",
-//         as: "customerQrs",
-//       },
-//     },
-//     {
-//       $lookup: {
-//         from: "customers",
-//         localField: "customerId",
-//         foreignField: "_id",
-//         as: "customer",
-//       },
-//     },
-//   ]);
+app.get("/admin/scan/search",async(req,res) => {
+  var searchKey=req.query.searchKey?.toLowerCase().trim()
+  console.log(searchKey)
+  var scanData = await lastScannedQr.aggregate([
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "customerId",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "customers",
+        localField: "customerId",
+        foreignField: "_id",
+        as: "customer",
+      },
+    },
+  ]);
 
-//   // let filteredData=scanData?.filter((data) => {
-//   //   const customerData= Object.keys(data).some(key => {
-//   //       return data[key]?.toString().toLowerCase().includes(searchKey) 
-//   //   })
-//   //   return customerData
-//   // })
 
-//   res.json({customers:filteredData})
-// })
+  let filteredData=scanData?.filter((data) => {
+    const scanData= Object.keys(data).some(key => {
+        return data[key]?.toString().toLowerCase().includes(searchKey)
+    })
+    return scanData
+  })
+
+  if(filteredData.length===0){
+    filteredData=scanData?.filter((data) => {
+      const scanData= Object.keys(data.customer[0]).some(key => {
+          return data.customer[0][key]?.toString().toLowerCase().includes(searchKey)
+      })
+      return scanData
+    })
+  }
+  
+  filteredData.sort((x,y) => {return y.datetime-x.datetime} )
+  res.json({filteredData})
+})
 
 app.listen((PORT = 1902), () => {
   console.log("server started");
