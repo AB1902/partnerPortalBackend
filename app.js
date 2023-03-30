@@ -155,20 +155,20 @@ app.delete("/doc/:id", async (req, res) => {
 app.delete("/qr/:id", async (req, res) => {
   const id = req.params.id;
   CustomerQr.findByIdAndDelete(id)
-  // const qrCodeRef = fireDb.collection("QRCode").doc(`${id}`);
-  // const doc = await qrCodeRef.get();
-  // await qrCodeRef.set({
-  //         Consumed: false,
-  //         UserMapped: false,
-  //         PIN: "",
-  //         UserID: "",
-  //         URL: "",
-  //         default: false,
-  //         Passcode: "",
-  //         ID: "",
-  //         Label: "",
-  //         SubContractor: "",
-  //       });
+    // const qrCodeRef = fireDb.collection("QRCode").doc(`${id}`);
+    // const doc = await qrCodeRef.get();
+    // await qrCodeRef.set({
+    //         Consumed: false,
+    //         UserMapped: false,
+    //         PIN: "",
+    //         UserID: "",
+    //         URL: "",
+    //         default: false,
+    //         Passcode: "",
+    //         ID: "",
+    //         Label: "",
+    //         SubContractor: "",
+    //       });
     .then((result) => {
       res.json({ result, deleted: true });
     })
@@ -886,46 +886,65 @@ app.post("/customers", async (req, res) => {
     gender,
     childListUid,
     bloodGroup,
+    origin,
   } = req.body;
-  if (!userUid) userUid = "undef";
-  if (!childListUid) childListUid = "undef";
-  if (!partnerUid) partnerUid = "undef";
-  const token = req.headers["x-auth-token"];
-  const payload = jwt.verify(token, "Viennacity.123");
 
-  const loggedInUser = await PartnerUsers.find({
-    partnerUserUid: payload.loggedInPartnerUser.id,
-  });
-  // res.json({loggedInUser})
-  if (!loggedInUser) {
-    console.log("not authorized");
+  if (origin !== "wesafe-web") {
+    if (!userUid) userUid = "undef";
+    if (!childListUid) childListUid = "undef";
+    if (!partnerUid) partnerUid = "undef";
+    const token = req.headers["x-auth-token"];
+    const payload = jwt.verify(token, "Viennacity.123");
+
+    const loggedInUser = await PartnerUsers.find({
+      partnerUserUid: payload.loggedInPartnerUser.id,
+    });
+    // res.json({loggedInUser})
+    if (!loggedInUser) {
+      console.log("not authorized");
+    }
   }
   try {
     let customers = await Customers.find();
-    let customer = await Customers.find({ userUid });
-    let date = new Date(Date.now()).toString();
-    let dateRegistered = date.substring(4, 15);
-    let portalId =
-      date.substring(11, 15) +
-      date.substring(8, 10) +
-      (customers.length + 1).toString();
-    console.log(dateRegistered);
-    console.log(date);
-    console.log(portalId);
-    customer = new Customers({
-      name,
-      address,
-      dob,
-      partnerUid,
-      childListUid,
-      userUid,
-      gender,
-      bloodGroup,
-      dateRegistered,
-      portalId,
-    });
-    await customer.save();
-    res.status(200).json({ message: "customer added", customer });
+    let customer = await Customers.find({ userUid, childListUid });
+
+    if (customer.length === 0) {
+      let date = new Date(Date.now()).toString();
+      let dateRegistered = date.substring(4, 15);
+      let portalId =
+        date.substring(11, 15) +
+        date.substring(8, 10) +
+        (customers.length + 1).toString();
+      console.log(dateRegistered);
+      console.log(date);
+      console.log(portalId);
+      customer = new Customers({
+        name,
+        address,
+        dob,
+        partnerUid,
+        childListUid,
+        userUid,
+        gender,
+        bloodGroup,
+        dateRegistered,
+        portalId,
+      });
+      await customer.save();
+      res.status(200).json({ message: "customer added", customer });
+    } else {
+      const rest = await Customers.findOneAndUpdate(
+        { userUid, childListUid },
+        {
+          name,
+          address,
+          dob,
+          gender,
+          bloodGroup,
+        }
+      );
+      res.status(200).json({ message: "customer updated", result: rest });
+    }
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -1138,7 +1157,7 @@ app.post("/:id/lastScanned", async (req, res) => {
     smstext,
     permission_given,
     timestamp,
-  })
+  });
   try {
     const userId = userUid + " " + childListUid;
     const newLastScanned = new lastScannedQr({
@@ -1158,7 +1177,7 @@ app.post("/:id/lastScanned", async (req, res) => {
     await newLastScanned.save();
     res.json({ newLastScanned });
   } catch (error) {
-    res.status(400).json({ "error": error.message });
+    res.status(400).json({ error: error.message });
   }
 });
 
@@ -1199,7 +1218,7 @@ app.delete("/customer/:id", async (req, res) => {
   }
 });
 
-app.get("/admin",async(req,res) => {
+app.get("/admin", async (req, res) => {
   const page = parseInt(req.query.page);
   const limit = parseInt(req.query.limit);
   const startIndex = (page - 1) * limit;
@@ -1238,33 +1257,39 @@ app.get("/admin",async(req,res) => {
         as: "lastScanned",
       },
     },
-  ]).sort({"created_at": 1});
+  ]).sort({ created_at: 1 });
 
-    const results = {};
-    if (startIndex > 0) {
-      results.next = {
-        page: page + 1,
-        limit: limit,
-      };
-    }
-    if (endIndex < customers.length) {
-      results.previous = {
-        page: page - 1,
-        limit: limit,
-      };
-    }
-    results.total = customers.length;
-    results.customers = customers.slice(startIndex, endIndex);
-    res.json({ results });
-})
+  const results = {};
+  if (startIndex > 0) {
+    results.next = {
+      page: page + 1,
+      limit: limit,
+    };
+  }
+  if (endIndex < customers.length) {
+    results.previous = {
+      page: page - 1,
+      limit: limit,
+    };
+  }
+  results.total = customers.length;
+  results.customers = customers.slice(startIndex, endIndex);
+  res.json({ results });
+});
 
-app.post("/admin/filter",async(req,res) => {
-  const { partnerSelect,qrAssigned,qrScanData,registerDateStart,registerDateEnd,partnerId } =
-    req.body;
-  date1=new Date(registerDateStart)
-  date2=new Date(registerDateEnd)
-  console.log(partnerSelect,qrAssigned,qrScanData, date1, date2,partnerId);
-  var partners=await Partners.find()
+app.post("/admin/filter", async (req, res) => {
+  const {
+    partnerSelect,
+    qrAssigned,
+    qrScanData,
+    registerDateStart,
+    registerDateEnd,
+    partnerId,
+  } = req.body;
+  date1 = new Date(registerDateStart);
+  date2 = new Date(registerDateEnd);
+  console.log(partnerSelect, qrAssigned, qrScanData, date1, date2, partnerId);
+  var partners = await Partners.find();
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -1299,29 +1324,35 @@ app.post("/admin/filter",async(req,res) => {
       },
     },
   ]);
-  
+
   let filteredData = [];
 
-  if(registerDateStart!=='from' && registerDateEnd!=='to'){
-    customers=customers.filter((data) => {
-      if(data.dateRegistered){
-        if(date1.getTime()<(new Date(data.dateRegistered).getTime()) && date2.getTime()>(new Date(data.dateRegistered)).getTime() )
-          return data
+  if (registerDateStart !== "from" && registerDateEnd !== "to") {
+    customers = customers.filter((data) => {
+      if (data.dateRegistered) {
+        if (
+          date1.getTime() < new Date(data.dateRegistered).getTime() &&
+          date2.getTime() > new Date(data.dateRegistered).getTime()
+        )
+          return data;
       }
-    })
+    });
   }
 
   if (partnerSelect !== "All") {
-    if(registerDateStart!=='from' && registerDateEnd!=='to'){
-      customers=customers.filter((data) => {
-        if(data.dateRegistered){
-          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
-            return data
+    if (registerDateStart !== "from" && registerDateEnd !== "to") {
+      customers = customers.filter((data) => {
+        if (data.dateRegistered) {
+          if (
+            date1.getTime() <= new Date(data.dateRegistered).getTime() &&
+            date2.getTime() >= new Date(data.dateRegistered).getTime()
+          )
+            return data;
         }
-      })
+      });
     }
     customers.forEach((customer) => {
-      if(customer.partnerUid===partnerId) filteredData.push(customer)
+      if (customer.partnerUid === partnerId) filteredData.push(customer);
       if (qrAssigned === "Yes") {
         filteredData = filteredData.filter((data) => {
           if (data.customerQrs.length > 0) return data;
@@ -1342,13 +1373,16 @@ app.post("/admin/filter",async(req,res) => {
       }
     });
   } else {
-    if(registerDateStart!=='from' && registerDateEnd!=='to'){
-      filteredData=customers.filter((data) => {
-        if(data.dateRegistered){
-          if(date1.getTime()<(new Date(data.dateRegistered).getTime()) && date2.getTime()>(new Date(data.dateRegistered)).getTime() )
-            return data
+    if (registerDateStart !== "from" && registerDateEnd !== "to") {
+      filteredData = customers.filter((data) => {
+        if (data.dateRegistered) {
+          if (
+            date1.getTime() < new Date(data.dateRegistered).getTime() &&
+            date2.getTime() > new Date(data.dateRegistered).getTime()
+          )
+            return data;
         }
-      })
+      });
     }
     if (qrAssigned === "Yes") {
       customers.forEach((customer) => {
@@ -1384,16 +1418,16 @@ app.post("/admin/filter",async(req,res) => {
       customers.forEach((customer) => {
         if (customer.customerQrs.length === 0) filteredData.push(customer);
       });
-    } 
+    }
   }
   console.log(filteredData);
 
-  res.json({ filteredData,partners });
-})
+  res.json({ filteredData, partners });
+});
 
-app.get("/admin/search",async(req,res) => {
-  var searchKey=req.query.searchKey.toLowerCase().trim()
-  console.log(searchKey)
+app.get("/admin/search", async (req, res) => {
+  var searchKey = req.query.searchKey.toLowerCase().trim();
+  console.log(searchKey);
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -1429,17 +1463,17 @@ app.get("/admin/search",async(req,res) => {
     },
   ]);
 
-  let filteredData=customers?.filter((data) => {
-    const customerData= Object.keys(data).some(key => {
-        return data[key]?.toString().toLowerCase().includes(searchKey) 
-    })
-    return customerData
-  })
+  let filteredData = customers?.filter((data) => {
+    const customerData = Object.keys(data).some((key) => {
+      return data[key]?.toString().toLowerCase().includes(searchKey);
+    });
+    return customerData;
+  });
 
-  res.json({customers:filteredData})
-})
+  res.json({ customers: filteredData });
+});
 
-app.get("/admin/all",async(req,res) => {
+app.get("/admin/all", async (req, res) => {
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -1476,7 +1510,7 @@ app.get("/admin/all",async(req,res) => {
   ]);
 
   res.json({ customers });
-})
+});
 
 app.listen((PORT = 1902), () => {
   console.log("server started");
