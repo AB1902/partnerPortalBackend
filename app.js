@@ -1512,6 +1512,109 @@ app.get("/admin/all", async (req, res) => {
   res.json({ customers });
 });
 
+app.get("/admin/scan",async(req,res) =>{
+  var scanData = await lastScannedQr.aggregate([
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "customerId",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "customers",
+        localField: "customerId",
+        foreignField: "_id",
+        as: "customer",
+      },
+    },
+  ]);
+  scanData.sort((x,y) => {return y.datetime-x.datetime} )
+  res.json({scanData,message:'working'})
+})
+
+app.post("/admin/scan/filter",async(req,res) =>{
+  const {registerDateStart,registerDateEnd}=req.body
+  var filteredData=[]
+  date1=new Date(registerDateStart)
+  date2=new Date(registerDateEnd)
+  var scanData = await lastScannedQr.aggregate([
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "customerId",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "customers",
+        localField: "customerId",
+        foreignField: "_id",
+        as: "customer",
+      },
+    },
+  ]);
+  scanData.sort((x,y) => {return y.datetime-x.datetime} )
+  if(registerDateStart!=='from'&& registerDateEnd!=='to'){
+    scanData=scanData.filter((data) => {
+      if(data.datetime){
+        if(date1.getTime()<=(new Date(data.datetime).getTime()) && date2.getTime()>=(new Date(data.datetime)).getTime() )
+          return data
+      }
+    })
+  }
+  console.log(scanData)
+  //console.log(new Date(scanData[0].datetime),new Date(registerDateStart),new Date(registerDateEnd))
+  res.json({scanData,message:'working'})
+})
+
+app.get("/admin/scan/search",async(req,res) => {
+  var searchKey=req.query.searchKey?.toLowerCase().trim()
+  console.log(searchKey)
+  var scanData = await lastScannedQr.aggregate([
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "customerId",
+        foreignField: "customerId",
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "customers",
+        localField: "customerId",
+        foreignField: "_id",
+        as: "customer",
+      },
+    },
+  ]);
+
+
+  let filteredData=scanData?.filter((data) => {
+    const scanData= Object.keys(data).some(key => {
+        return data[key]?.toString().toLowerCase().includes(searchKey)
+    })
+    return scanData
+  })
+
+  if(filteredData.length===0){
+    filteredData=scanData?.filter((data) => {
+      const scanData= Object.keys(data.customer[0]).some(key => {
+          return data.customer[0][key]?.toString().toLowerCase().includes(searchKey)
+      })
+      return scanData
+    })
+  }
+  
+  filteredData.sort((x,y) => {return y.datetime-x.datetime} )
+  res.json({filteredData})
+})
+
 app.listen((PORT = 1902), () => {
   console.log("server started");
 });
