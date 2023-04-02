@@ -341,9 +341,12 @@ app.get("/customerData/new", async (req, res) => {
 
 //filter route
 app.post("/customerData/filter", async (req, res) => {
-  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData } =
+  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, registerDateStart, registerDateEnd } =
     req.body;
-  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData);
+  date1=new Date(registerDateStart)
+  date2=new Date(registerDateEnd)
+  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, date1, date2);
+  
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -392,6 +395,7 @@ app.post("/customerData/filter", async (req, res) => {
   // }
 
   if (groupSelect !== "All") {
+    
     customers.forEach((customer) => {
       customer.customerGroups.forEach((group) => {
         if (group.groupName === groupSelect) filteredData.push(customer);
@@ -433,8 +437,26 @@ app.post("/customerData/filter", async (req, res) => {
         });
       }
     });
+    if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length>0){
+      filteredData=filteredData.filter((data) => {
+        if(data.dateRegistered){
+          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+            return data
+        }
+      })
+    }else if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length===0){
+      filteredData=customers.filter((data) => {
+        if(data.dateRegistered){
+          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+            return data
+        }
+      })
+    }
   } else {
     if (groupAssigned === "Yes") {
+      // filteredData = filteredData.filter((data) => {
+      //   if (data.customerGroups.length > 0) return data;
+      // })
       customers.forEach((customer) => {
         if (customer.customerGroups.length > 0) filteredData.push(customer);
       });
@@ -575,6 +597,21 @@ app.post("/customerData/filter", async (req, res) => {
         if (customer.lastScanned.length === 0) filteredData.push(customer);
       });
     }
+  }
+  if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length>0){
+    filteredData=filteredData.filter((data) => {
+      if(data.dateRegistered){
+        if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+          return data
+      }
+    })
+  }else if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length===0){
+    filteredData=customers.filter((data) => {
+      if(data.dateRegistered){
+        if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+          return data
+      }
+    })
   }
   console.log(filteredData);
 
@@ -902,30 +939,39 @@ app.post("/customers", async (req, res) => {
   }
   try {
     let customers = await Customers.find();
-    let customer = await Customers.find({ userUid });
-    let date = new Date(Date.now()).toString();
-    let dateRegistered = date.substring(4, 15);
-    let portalId =
-      date.substring(11, 15) +
-      date.substring(8, 10) +
-      (customers.length + 1).toString();
-    console.log(dateRegistered);
-    console.log(date);
-    console.log(portalId);
-    customer = new Customers({
-      name,
-      address,
-      dob,
-      partnerUid,
-      childListUid,
-      userUid,
-      gender,
-      bloodGroup,
-      dateRegistered,
-      portalId,
-    });
-    await customer.save();
-    res.status(200).json({ message: "customer added", customer });
+    let customer = await Customers.find({ userUid,childListUid });
+    // if(customer){
+    //   console.log(customer)
+    // }
+    if(customer.length!=0){
+      console.log(customer)
+      res.json({"message":"customer already exists"})
+    }else{
+      let date = new Date(Date.now()).toString();
+      let dateRegistered = date.substring(4, 15);
+      let portalId =
+        date.substring(11, 15) +
+        date.substring(8, 10) +
+        (customers.length + 1).toString();
+      console.log(dateRegistered);
+      console.log(date);
+      console.log(portalId);
+      customer = new Customers({
+        name,
+        address,
+        dob,
+        partnerUid,
+        childListUid,
+        userUid,
+        gender,
+        bloodGroup,
+        dateRegistered,
+        portalId,
+      });
+      await customer.save();
+      res.status(200).json({ message: "customer added", customer });
+    }
+    
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
