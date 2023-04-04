@@ -23,6 +23,7 @@ const CustomerQr = require("./models/CustomerQr");
 const lastScannedQr = require("./models/LastScannedQr");
 const { db } = require("./models/Partners");
 const csv = require("csvtojson");
+const other=require("./models/Documents/Other")
 // const { initializeApp } = require('firebase-admin/app');
 // const fbApp=initializeApp()
 var admin = require("firebase-admin");
@@ -193,6 +194,50 @@ app.get("/upload/:id", async (req, res) => {
   res.json({ doc });
 });
 
+app.get("/documents",async(req,res) => {
+  var customers = await Customers.aggregate([
+    {
+      $lookup: {
+        from: "customergroups",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerGroups",
+      },
+    },
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "_id",
+        foreignField: "customerId", 
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
+        as: "customerDocs",
+      },
+    },
+    {
+      $lookup: {
+        from: "lastscanneds",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "lastScanned",
+      },
+    },
+  ]);
+  // customers=customers.filter(customer => {
+  //   if(customer.customerDocs.length>0)
+  //     return customer
+  // })
+  res.json({customers})
+})
+
 app.get("/customerData", async (req, res) => {
   var customers = await Customers.aggregate([
     {
@@ -213,12 +258,22 @@ app.get("/customerData", async (req, res) => {
     },
     {
       $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -254,12 +309,22 @@ app.get("/search", async (req, res) => {
     },
     {
       $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -305,12 +370,22 @@ app.get("/customerData/new", async (req, res) => {
     },
     {
       $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -364,11 +439,21 @@ app.post("/customerData/filter", async (req, res) => {
         as: "customerQrs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
         as: "customerDocs",
       },
     },
@@ -1286,6 +1371,16 @@ app.get("/admin", async (req, res) => {
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "others",
+    //     let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+    //     pipeline:[
+    //       {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+    //     ],
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -1352,6 +1447,16 @@ app.post("/admin/filter", async (req, res) => {
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "others",
+    //     let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+    //     pipeline:[
+    //       {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+    //     ],
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -1490,6 +1595,16 @@ app.get("/admin/search", async (req, res) => {
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "others",
+    //     let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+    //     pipeline:[
+    //       {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+    //     ],
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -1536,6 +1651,16 @@ app.get("/admin/all", async (req, res) => {
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "others",
+    //     let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+    //     pipeline:[
+    //       {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+    //     ],
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
