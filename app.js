@@ -24,6 +24,8 @@ const lastScannedQr = require("./models/LastScannedQr");
 const { db } = require("./models/Partners");
 const csv = require("csvtojson");
 const other=require("./models/Documents/Other")
+const cookieParser=require('cookie-parser')
+const Cookies=require("js-cookie")
 // const { initializeApp } = require('firebase-admin/app');
 // const fbApp=initializeApp()
 var admin = require("firebase-admin");
@@ -34,6 +36,7 @@ const serviceAccount = require("./wesafeclone-8866289e61b3.json");
 // aws document configs
 const documentRouter = require("./routes/document-route");
 const visibilityRouter = require("./routes/visibility-route");
+const { request } = require("http");
 
 connectDB();
 
@@ -53,11 +56,12 @@ connectDB();
 //   "auth_provider_x509_cert_url": process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
 //   "client_x509_cert_url": process.env.
 // }
-
-app.use(cors());
+app.use(cors());  
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+//app.use(cookieParser())
 app.use(express.static(path.resolve(__dirname, "public")));
+
 // app.use(express.static(path.resolve(__dirname, "uploads")));
 app.use("/api/wesafe/docs", documentRouter);
 app.use("/api/wesafe/visibility", visibilityRouter);
@@ -287,9 +291,10 @@ app.get("/customerData", async (req, res) => {
   res.json({ customers });
 });
 
-app.get("/search", async (req, res) => {
+app.get("/:id/search", async (req, res) => {
   var searchKey = req.query.searchKey.toLowerCase().trim();
   console.log(searchKey);
+  const {id}=req.params
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -334,6 +339,11 @@ app.get("/search", async (req, res) => {
       },
     },
   ]);
+
+  customers=customers.filter((customer) => {
+    if(customer.partnerUid===id)
+      return customer
+  }) 
 
   let filteredData = customers?.filter((data) => {
     const customerData = Object.keys(data).some((key) => {
@@ -345,12 +355,13 @@ app.get("/search", async (req, res) => {
   res.json({ customers: filteredData });
 });
 
-app.get("/customerData/new", async (req, res) => {
+app.get("/customerData/:id/new", async (req, res) => {
+  
   const page = parseInt(req.query.page);
   const limit = parseInt(req.query.limit);
   const startIndex = (page - 1) * limit;
   const endIndex = page * limit;
-
+  const {id}=req.params
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -395,6 +406,11 @@ app.get("/customerData/new", async (req, res) => {
       },
     },
   ]);
+
+  customers=customers.filter((customer) => {
+    if(customer.partnerUid===id)
+      return customer
+  })  
 
   const results = {};
   if (startIndex > 0) {
@@ -415,12 +431,14 @@ app.get("/customerData/new", async (req, res) => {
 });
 
 //filter route
-app.post("/customerData/filter", async (req, res) => {
+app.post("/customerData/:id/filter", async (req, res) => {
   const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, registerDateStart, registerDateEnd } =
     req.body;
   date1=new Date(registerDateStart)
   date2=new Date(registerDateEnd)
   console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, date1, date2);
+  const {id}=req.params
+
   
   var customers = await Customers.aggregate([
     {
@@ -467,6 +485,11 @@ app.post("/customerData/filter", async (req, res) => {
     },
   ]);
 
+  customers=customers.filter((customer) => {
+    if(customer.partnerUid===id)
+      return customer
+  }) 
+  
   let filteredData = [];
 
   // if(registerDateStart!=='from' && registerDateEnd!=='to'){
@@ -749,12 +772,21 @@ app.post("/partnerUsers/login", async (req, res) => {
       },
     };
 
+    // res.cookie("payload",payload,{
+    //   httpOnly:true,
+    //   secure: false
+    // })
+
     jwt.sign(payload, config.get("JWTSecret"), (err, token) => {
       if (err) console.log(err.message);
       // res.cookie("jwToken",token,{
       //     expires:new Date(Date.now()+18000000),
       //     httpOnly:true
       // })
+      // res.cookie('payload',payload.loggedInPartnerUser.id,{
+      //   httpOnly:true
+      // })
+
       res
         .status(200)
         .json({ token, message: "logged in successfully", partner, payload });
