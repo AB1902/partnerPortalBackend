@@ -34,61 +34,42 @@ const customerSchema= new mongoose.Schema({
     },
     portalId:{
         type:String
-    }
-    // qrStatus:[
-    // {
-    //     id:{
-    //         type:String,
-    //         required:true
-    //         },
-    //         pin:{
-    //             type:String,
-    //             required:true
-    //         },
-    //         lastScanned:{
-    //             type:Date
-    //         }
-    // }
-               
-    // ],
-    // groups:
-    //     [
-    //         {
-    //             groupName:{
-    //                 type:String,
-    //                 required:true
-    //             },
-    //             groupId:{
-    //                 type:mongoose.Types.ObjectId,
-    //                 ref:'Group',
-    //             },
-    //             destination:{
-    //                 type:String,
-    //                 required:true
-    //             },
-    //             startDate:{
-    //                 type:Date,
-    //                 required:true
-    //             },
-    //             endDate:{
-    //                 type:Date,
-    //                 required:true
-    //             }
-    //         }
-    //     ]
-    // ,
-    // childList:
-    // [
-    //     {
-    //         childHash:{
-    //             type:String,
-    //             required:true
-    //         }
-    //     }
-            
-    // ]
+    },
+    email:{
+        type:String
+    },
+    mobile:{
+        type:String
+    },
     
-   
+    emergencyContactName1:{
+        type:String
+    },
+    emergencyContactName2:{
+        type:String
+    },
+    emergencyContactMobile1:{
+        type:String
+    },
+    emergencyContactMobile2:{
+        type:String
+    }
+    // emergencyContact1:{
+    //     name:{
+    //         type:String
+    //     },
+    //     contact:{
+    //         type:String
+    //     }
+    // },
+    // emergencyContact2:{
+    //     name:{
+    //         type:String
+    //     },
+    //     contact:{
+    //         type:String
+    //     }
+    // },
 })
 
 module.exports=mongoose.model('Customer',customerSchema)

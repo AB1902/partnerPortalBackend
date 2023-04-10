@@ -489,7 +489,7 @@ app.post("/customerData/:id/filter", async (req, res) => {
     if(customer.partnerUid===id)
       return customer
   }) 
-  
+
   let filteredData = [];
 
   // if(registerDateStart!=='from' && registerDateEnd!=='to'){
@@ -1807,6 +1807,54 @@ app.get("/admin/scan/search",async(req,res) => {
   
   filteredData.sort((x,y) => {return y.datetime-x.datetime} )
   res.json({filteredData})
+})
+
+app.patch("/customer/:id",async(req,res) => {
+  const id= req.params.id
+  const {name, email, mobile, address, dob, bloodGroup, gender, emergencyContactMobile1, emergencyContactMobile2, emergencyContactName1, emergencyContactName2}=req.body
+  console.log(name, email, mobile, address, dob, bloodGroup ,gender ,emergencyContactMobile1,emergencyContactMobile2)
+  var customer= await Customers.find({_id: id})
+  var ec1= {}
+  var ec2= {}
+  var updateObj= {}
+
+  // if(emergencyContactMobile1!=='' && emergencyContactName1!==''){
+  //   ec1.name=emergencyContactName1,
+  //   ec1.contact=emergencyContactMobile1
+  // }
+  // if(emergencyContactMobile2!=='' && emergencyContactName2!==''){
+  //   ec2.name=emergencyContactName2,
+  //   ec2.contact=emergencyContactMobile2
+  // }
+
+  if(name!=='')
+    updateObj.name=name
+  if(email!=='')
+    updateObj.email=email
+  if(mobile!=='')
+    updateObj.mobile=mobile
+  if(address!=='')
+    updateObj.address=address
+  if(dob!=='')
+    updateObj.dob=new Date(dob)
+  if(bloodGroup!=='')
+    updateObj.bloodGroup=bloodGroup
+  if(gender!=='')
+    updateObj.gender=gender
+
+  if(emergencyContactName1!=='')
+    updateObj.emergencyContactName1=emergencyContactName1
+  if(emergencyContactMobile1!=='')
+    updateObj.emergencyContactMobile1=emergencyContactMobile1
+
+  if(emergencyContactName2!=='')
+    updateObj.emergencyContactName2=emergencyContactName2
+  if(emergencyContactMobile2!=='')
+    updateObj.emergencyContactMobile2=emergencyContactMobile2
+    
+  await Customers.updateOne({_id:id},{$set:updateObj})
+  
+  res.json({customer,updateObj})
 })
 
 app.listen((PORT = 1902), () => {
