@@ -163,6 +163,7 @@ app.delete("/qr/:id", async (req, res) => {
       const qrDetails=await CustomerQr.find({_id:id})
       const qrCodeRef = fireDb.collection("QRCode").doc(`${qrDetails[0].qrId}`);
       const doc = await qrCodeRef.get();
+      //const scanData=await lastScannedQr.find({qrcode:qrDetails[0].qrId})
       await qrCodeRef.set({
               Consumed: false,
               UserMapped: false,
@@ -175,6 +176,7 @@ app.delete("/qr/:id", async (req, res) => {
               Label: "",
               SubContractor: "",
       });
+      await lastScannedQr.deleteMany({qrcode:qrDetails[0].qrId})
       await CustomerQr.findByIdAndDelete(id);
       res.json({ result, deleted: true });
     } catch (error) {
@@ -291,7 +293,7 @@ app.get("/customerData", async (req, res) => {
   res.json({ customers });
 });
 
-app.get("/:id/search", async (req, res) => {
+app.get("/customerData/:id/search", async (req, res) => {
   var searchKey = req.query.searchKey.toLowerCase().trim();
   console.log(searchKey);
   const {id}=req.params
@@ -1600,8 +1602,8 @@ app.post("/admin/filter", async (req, res) => {
 });
 
 app.get("/admin/search", async (req, res) => {
-  var searchKey = req.query.searchKey.toLowerCase().trim();
-  console.log(searchKey);
+  var adminSearchKey = req.query.adminSearchKey.toLowerCase().trim();
+  console.log(adminSearchKey);
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -1619,14 +1621,14 @@ app.get("/admin/search", async (req, res) => {
         as: "customerQrs",
       },
     },
-    {
-      $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "customerDocs",
-      },
-    },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     // {
     //   $lookup: {
     //     from: "others",
@@ -1647,14 +1649,16 @@ app.get("/admin/search", async (req, res) => {
     },
   ]);
 
+  console.log(customers)
+
   let filteredData = customers?.filter((data) => {
     const customerData = Object.keys(data).some((key) => {
-      return data[key]?.toString().toLowerCase().includes(searchKey);
+      return data[key]?.toString().toLowerCase().includes(adminSearchKey);
     });
     return customerData;
   });
 
-  res.json({ customers: filteredData });
+  res.json({ customers:filteredData });
 });
 
 app.get("/admin/all", async (req, res) => {
