@@ -158,28 +158,28 @@ app.delete("/doc/:id", async (req, res) => {
 });
 
 app.delete("/qr/:id", async (req, res) => {
-  const id = req.params.id;
-  CustomerQr.findByIdAndDelete(id)
-    // const qrCodeRef = fireDb.collection("QRCode").doc(`${id}`);
-    // const doc = await qrCodeRef.get();
-    // await qrCodeRef.set({
-    //         Consumed: false,
-    //         UserMapped: false,
-    //         PIN: "",
-    //         UserID: "",
-    //         URL: "",
-    //         default: false,
-    //         Passcode: "",
-    //         ID: "",
-    //         Label: "",
-    //         SubContractor: "",
-    //       });
-    .then((result) => {
+    const id = req.params.id;
+    try {
+      const qrDetails=await CustomerQr.find({_id:id})
+      const qrCodeRef = fireDb.collection("QRCode").doc(`${qrDetails[0].qrId}`);
+      const doc = await qrCodeRef.get();
+      await qrCodeRef.set({
+              Consumed: false,
+              UserMapped: false,
+              PIN: "",
+              UserID: "",
+              URL: "",
+              default: false,
+              Passcode: "",
+              ID: "",
+              Label: "",
+              SubContractor: "",
+      });
+      await CustomerQr.findByIdAndDelete(id);
       res.json({ result, deleted: true });
-    })
-    .catch((err) => {
-      res.json({ error: err.message });
-    });
+    } catch (error) {
+      res.json({ error: error.message });
+    }
 });
 
 app.get("/customers", async (req, res) => {
@@ -1811,50 +1811,55 @@ app.get("/admin/scan/search",async(req,res) => {
 
 app.patch("/customer/:id",async(req,res) => {
   const id= req.params.id
-  const {name, email, mobile, address, dob, bloodGroup, gender, emergencyContactMobile1, emergencyContactMobile2, emergencyContactName1, emergencyContactName2}=req.body
-  console.log(name, email, mobile, address, dob, bloodGroup ,gender ,emergencyContactMobile1,emergencyContactMobile2)
-  var customer= await Customers.find({_id: id})
-  var ec1= {}
-  var ec2= {}
-  var updateObj= {}
-
-  // if(emergencyContactMobile1!=='' && emergencyContactName1!==''){
-  //   ec1.name=emergencyContactName1,
-  //   ec1.contact=emergencyContactMobile1
-  // }
-  // if(emergencyContactMobile2!=='' && emergencyContactName2!==''){
-  //   ec2.name=emergencyContactName2,
-  //   ec2.contact=emergencyContactMobile2
-  // }
-
-  if(name!=='')
-    updateObj.name=name
-  if(email!=='')
-    updateObj.email=email
-  if(mobile!=='')
-    updateObj.mobile=mobile
-  if(address!=='')
-    updateObj.address=address
-  if(dob!=='')
-    updateObj.dob=new Date(dob)
-  if(bloodGroup!=='')
-    updateObj.bloodGroup=bloodGroup
-  if(gender!=='')
-    updateObj.gender=gender
-
-  if(emergencyContactName1!=='')
-    updateObj.emergencyContactName1=emergencyContactName1
-  if(emergencyContactMobile1!=='')
-    updateObj.emergencyContactMobile1=emergencyContactMobile1
-
-  if(emergencyContactName2!=='')
-    updateObj.emergencyContactName2=emergencyContactName2
-  if(emergencyContactMobile2!=='')
-    updateObj.emergencyContactMobile2=emergencyContactMobile2
-    
-  await Customers.updateOne({_id:id},{$set:updateObj})
+  try {
+    const {name, email, mobile, address, dob, bloodGroup, gender, emergencyContactMobile1, emergencyContactMobile2, 
+      emergencyContactName1, emergencyContactName2}=req.body
+    var customer= await Customers.find({_id: id})
+    var ec1= {}
+    var ec2= {}
+    var updateObj= {}
   
-  res.json({customer,updateObj})
+    // if(emergencyContactMobile1!=='' && emergencyContactName1!==''){
+    //   ec1.name=emergencyContactName1,
+    //   ec1.contact=emergencyContactMobile1
+    // }
+    // if(emergencyContactMobile2!=='' && emergencyContactName2!==''){
+    //   ec2.name=emergencyContactName2,
+    //   ec2.contact=emergencyContactMobile2
+    // }
+  
+    if(name!=='')
+      updateObj.name=name
+    if(email!=='')
+      updateObj.email=email
+    if(mobile!=='')
+      updateObj.mobile=mobile
+    if(address!=='')
+      updateObj.address=address
+    if(dob!=='')
+      updateObj.dob=new Date(dob)
+    if(bloodGroup!=='')
+      updateObj.bloodGroup=bloodGroup
+    if(gender!=='')
+      updateObj.gender=gender
+  
+    if(emergencyContactName1!=='')
+      updateObj.emergencyContactName1=emergencyContactName1
+    if(emergencyContactMobile1!=='')
+      updateObj.emergencyContactMobile1=emergencyContactMobile1
+  
+    if(emergencyContactName2!=='')
+      updateObj.emergencyContactName2=emergencyContactName2
+    if(emergencyContactMobile2!=='')
+      updateObj.emergencyContactMobile2=emergencyContactMobile2
+  
+    await Customers.updateOne({_id:id},{$set:updateObj})
+    
+    res.json({customer,updateObj,message:'successfully updated'})
+  } catch (error) {
+    res.json({message: error.message})
+  }
+ 
 })
 
 app.listen((PORT = 1902), () => {
