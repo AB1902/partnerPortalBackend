@@ -23,6 +23,9 @@ const CustomerQr = require("./models/CustomerQr");
 const lastScannedQr = require("./models/LastScannedQr");
 const { db } = require("./models/Partners");
 const csv = require("csvtojson");
+const other=require("./models/Documents/Other")
+const cookieParser=require('cookie-parser')
+const Cookies=require("js-cookie")
 // const { initializeApp } = require('firebase-admin/app');
 // const fbApp=initializeApp()
 var admin = require("firebase-admin");
@@ -33,6 +36,7 @@ const serviceAccount = require("./wesafeclone-8866289e61b3.json");
 // aws document configs
 const documentRouter = require("./routes/document-route");
 const visibilityRouter = require("./routes/visibility-route");
+const { request } = require("http");
 
 connectDB();
 
@@ -52,11 +56,12 @@ connectDB();
 //   "auth_provider_x509_cert_url": process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
 //   "client_x509_cert_url": process.env.
 // }
-
-app.use(cors());
+app.use(cors());  
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+//app.use(cookieParser())
 app.use(express.static(path.resolve(__dirname, "public")));
+
 // app.use(express.static(path.resolve(__dirname, "uploads")));
 app.use("/api/wesafe/docs", documentRouter);
 app.use("/api/wesafe/visibility", visibilityRouter);
@@ -153,28 +158,30 @@ app.delete("/doc/:id", async (req, res) => {
 });
 
 app.delete("/qr/:id", async (req, res) => {
-  const id = req.params.id;
-  CustomerQr.findByIdAndDelete(id)
-    // const qrCodeRef = fireDb.collection("QRCode").doc(`${id}`);
-    // const doc = await qrCodeRef.get();
-    // await qrCodeRef.set({
-    //         Consumed: false,
-    //         UserMapped: false,
-    //         PIN: "",
-    //         UserID: "",
-    //         URL: "",
-    //         default: false,
-    //         Passcode: "",
-    //         ID: "",
-    //         Label: "",
-    //         SubContractor: "",
-    //       });
-    .then((result) => {
+    const id = req.params.id;
+    try {
+      const qrDetails=await CustomerQr.find({_id:id})
+      const qrCodeRef = fireDb.collection("QRCode").doc(`${qrDetails[0].qrId}`);
+      const doc = await qrCodeRef.get();
+      //const scanData=await lastScannedQr.find({qrcode:qrDetails[0].qrId})
+      await qrCodeRef.set({
+              Consumed: false,
+              UserMapped: false,
+              PIN: "",
+              UserID: "",
+              URL: "",
+              default: false,
+              Passcode: "",
+              ID: "",
+              Label: "",
+              SubContractor: "",
+      });
+      await lastScannedQr.deleteMany({qrcode:qrDetails[0].qrId})
+      await CustomerQr.findByIdAndDelete(id);
       res.json({ result, deleted: true });
-    })
-    .catch((err) => {
-      res.json({ error: err.message });
-    });
+    } catch (error) {
+      res.json({ error: error.message });
+    }
 });
 
 app.get("/customers", async (req, res) => {
@@ -192,6 +199,50 @@ app.get("/upload/:id", async (req, res) => {
   const doc = await Document.find({ customerHash });
   res.json({ doc });
 });
+
+app.get("/documents",async(req,res) => {
+  var customers = await Customers.aggregate([
+    {
+      $lookup: {
+        from: "customergroups",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "customerGroups",
+      },
+    },
+    {
+      $lookup: {
+        from: "customerqrs",
+        localField: "_id",
+        foreignField: "customerId", 
+        as: "customerQrs",
+      },
+    },
+    {
+      $lookup: {
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
+        as: "customerDocs",
+      },
+    },
+    {
+      $lookup: {
+        from: "lastscanneds",
+        localField: "_id",
+        foreignField: "customerId",
+        as: "lastScanned",
+      },
+    },
+  ]);
+  // customers=customers.filter(customer => {
+  //   if(customer.customerDocs.length>0)
+  //     return customer
+  // })
+  res.json({customers})
+})
 
 app.get("/customerData", async (req, res) => {
   var customers = await Customers.aggregate([
@@ -213,12 +264,22 @@ app.get("/customerData", async (req, res) => {
     },
     {
       $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -232,9 +293,10 @@ app.get("/customerData", async (req, res) => {
   res.json({ customers });
 });
 
-app.get("/search", async (req, res) => {
+app.get("/customerData/:id/search", async (req, res) => {
   var searchKey = req.query.searchKey.toLowerCase().trim();
   console.log(searchKey);
+  const {id}=req.params
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -254,12 +316,22 @@ app.get("/search", async (req, res) => {
     },
     {
       $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -269,6 +341,11 @@ app.get("/search", async (req, res) => {
       },
     },
   ]);
+
+  customers=customers.filter((customer) => {
+    if(customer.partnerUid===id)
+      return customer
+  }) 
 
   let filteredData = customers?.filter((data) => {
     const customerData = Object.keys(data).some((key) => {
@@ -280,12 +357,13 @@ app.get("/search", async (req, res) => {
   res.json({ customers: filteredData });
 });
 
-app.get("/customerData/new", async (req, res) => {
+app.get("/customerData/:id/new", async (req, res) => {
+  
   const page = parseInt(req.query.page);
   const limit = parseInt(req.query.limit);
   const startIndex = (page - 1) * limit;
   const endIndex = page * limit;
-
+  const {id}=req.params
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -305,12 +383,22 @@ app.get("/customerData/new", async (req, res) => {
     },
     {
       $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -320,6 +408,11 @@ app.get("/customerData/new", async (req, res) => {
       },
     },
   ]);
+
+  customers=customers.filter((customer) => {
+    if(customer.partnerUid===id)
+      return customer
+  })  
 
   const results = {};
   if (startIndex > 0) {
@@ -340,10 +433,15 @@ app.get("/customerData/new", async (req, res) => {
 });
 
 //filter route
-app.post("/customerData/filter", async (req, res) => {
-  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData } =
+app.post("/customerData/:id/filter", async (req, res) => {
+  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, registerDateStart, registerDateEnd } =
     req.body;
-  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData);
+  date1=new Date(registerDateStart)
+  date2=new Date(registerDateEnd)
+  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, date1, date2);
+  const {id}=req.params
+
+  
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -361,11 +459,21 @@ app.post("/customerData/filter", async (req, res) => {
         as: "customerQrs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
+        from: "others",
+        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+        pipeline:[
+          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        ],
         as: "customerDocs",
       },
     },
@@ -378,6 +486,11 @@ app.post("/customerData/filter", async (req, res) => {
       },
     },
   ]);
+
+  customers=customers.filter((customer) => {
+    if(customer.partnerUid===id)
+      return customer
+  }) 
 
   let filteredData = [];
 
@@ -392,6 +505,7 @@ app.post("/customerData/filter", async (req, res) => {
   // }
 
   if (groupSelect !== "All") {
+    
     customers.forEach((customer) => {
       customer.customerGroups.forEach((group) => {
         if (group.groupName === groupSelect) filteredData.push(customer);
@@ -433,8 +547,26 @@ app.post("/customerData/filter", async (req, res) => {
         });
       }
     });
+    if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length>0){
+      filteredData=filteredData.filter((data) => {
+        if(data.dateRegistered){
+          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+            return data
+        }
+      })
+    }else if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length===0){
+      filteredData=customers.filter((data) => {
+        if(data.dateRegistered){
+          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+            return data
+        }
+      })
+    }
   } else {
     if (groupAssigned === "Yes") {
+      // filteredData = filteredData.filter((data) => {
+      //   if (data.customerGroups.length > 0) return data;
+      // })
       customers.forEach((customer) => {
         if (customer.customerGroups.length > 0) filteredData.push(customer);
       });
@@ -576,6 +708,21 @@ app.post("/customerData/filter", async (req, res) => {
       });
     }
   }
+  if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length>0){
+    filteredData=filteredData.filter((data) => {
+      if(data.dateRegistered){
+        if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+          return data
+      }
+    })
+  }else if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length===0){
+    filteredData=customers.filter((data) => {
+      if(data.dateRegistered){
+        if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
+          return data
+      }
+    })
+  }
   console.log(filteredData);
 
   res.json({ filteredData });
@@ -627,12 +774,21 @@ app.post("/partnerUsers/login", async (req, res) => {
       },
     };
 
+    // res.cookie("payload",payload,{
+    //   httpOnly:true,
+    //   secure: false
+    // })
+
     jwt.sign(payload, config.get("JWTSecret"), (err, token) => {
       if (err) console.log(err.message);
       // res.cookie("jwToken",token,{
       //     expires:new Date(Date.now()+18000000),
       //     httpOnly:true
       // })
+      // res.cookie('payload',payload.loggedInPartnerUser.id,{
+      //   httpOnly:true
+      // })
+
       res
         .status(200)
         .json({ token, message: "logged in successfully", partner, payload });
@@ -1249,6 +1405,16 @@ app.get("/admin", async (req, res) => {
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "others",
+    //     let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+    //     pipeline:[
+    //       {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+    //     ],
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -1315,6 +1481,16 @@ app.post("/admin/filter", async (req, res) => {
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "others",
+    //     let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+    //     pipeline:[
+    //       {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+    //     ],
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -1426,8 +1602,8 @@ app.post("/admin/filter", async (req, res) => {
 });
 
 app.get("/admin/search", async (req, res) => {
-  var searchKey = req.query.searchKey.toLowerCase().trim();
-  console.log(searchKey);
+  var adminSearchKey = req.query.adminSearchKey.toLowerCase().trim();
+  console.log(adminSearchKey);
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -1445,14 +1621,24 @@ app.get("/admin/search", async (req, res) => {
         as: "customerQrs",
       },
     },
-    {
-      $lookup: {
-        from: "documents",
-        localField: "_id",
-        foreignField: "customerId",
-        as: "customerDocs",
-      },
-    },
+    // {
+    //   $lookup: {
+    //     from: "documents",
+    //     localField: "_id",
+    //     foreignField: "customerId",
+    //     as: "customerDocs",
+    //   },
+    // },
+    // {
+    //   $lookup: {
+    //     from: "others",
+    //     let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+    //     pipeline:[
+    //       {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+    //     ],
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -1463,14 +1649,16 @@ app.get("/admin/search", async (req, res) => {
     },
   ]);
 
+  console.log(customers)
+
   let filteredData = customers?.filter((data) => {
     const customerData = Object.keys(data).some((key) => {
-      return data[key]?.toString().toLowerCase().includes(searchKey);
+      return data[key]?.toString().toLowerCase().includes(adminSearchKey);
     });
     return customerData;
   });
 
-  res.json({ customers: filteredData });
+  res.json({ customers:filteredData });
 });
 
 app.get("/admin/all", async (req, res) => {
@@ -1499,6 +1687,16 @@ app.get("/admin/all", async (req, res) => {
         as: "customerDocs",
       },
     },
+    // {
+    //   $lookup: {
+    //     from: "others",
+    //     let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
+    //     pipeline:[
+    //       {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+    //     ],
+    //     as: "customerDocs",
+    //   },
+    // },
     {
       $lookup: {
         from: "lastscanneds",
@@ -1613,6 +1811,59 @@ app.get("/admin/scan/search",async(req,res) => {
   
   filteredData.sort((x,y) => {return y.datetime-x.datetime} )
   res.json({filteredData})
+})
+
+app.patch("/customer/:id",async(req,res) => {
+  const id= req.params.id
+  try {
+    const {name, email, mobile, address, dob, bloodGroup, gender, emergencyContactMobile1, emergencyContactMobile2, 
+      emergencyContactName1, emergencyContactName2}=req.body
+    var customer= await Customers.find({_id: id})
+    var ec1= {}
+    var ec2= {}
+    var updateObj= {}
+  
+    // if(emergencyContactMobile1!=='' && emergencyContactName1!==''){
+    //   ec1.name=emergencyContactName1,
+    //   ec1.contact=emergencyContactMobile1
+    // }
+    // if(emergencyContactMobile2!=='' && emergencyContactName2!==''){
+    //   ec2.name=emergencyContactName2,
+    //   ec2.contact=emergencyContactMobile2
+    // }
+  
+    if(name!=='')
+      updateObj.name=name
+    if(email!=='')
+      updateObj.email=email
+    if(mobile!=='')
+      updateObj.mobile=mobile
+    if(address!=='')
+      updateObj.address=address
+    if(dob!=='')
+      updateObj.dob=new Date(dob)
+    if(bloodGroup!=='')
+      updateObj.bloodGroup=bloodGroup
+    if(gender!=='')
+      updateObj.gender=gender
+  
+    if(emergencyContactName1!=='')
+      updateObj.emergencyContactName1=emergencyContactName1
+    if(emergencyContactMobile1!=='')
+      updateObj.emergencyContactMobile1=emergencyContactMobile1
+  
+    if(emergencyContactName2!=='')
+      updateObj.emergencyContactName2=emergencyContactName2
+    if(emergencyContactMobile2!=='')
+      updateObj.emergencyContactMobile2=emergencyContactMobile2
+  
+    await Customers.updateOne({_id:id},{$set:updateObj})
+    
+    res.json({customer,updateObj,message:'successfully updated'})
+  } catch (error) {
+    res.json({message: error.message})
+  }
+ 
 })
 
 app.listen((PORT = 1902), () => {
