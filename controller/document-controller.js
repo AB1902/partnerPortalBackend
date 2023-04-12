@@ -277,7 +277,7 @@ exports.deleteUserDocs = async (req, res) => {
       target = await Other.deleteOne({ _id: objId });
     }
 
-    if (target.deletedCount === 0) {
+    if (target?.deletedCount === 0) {
       return res.status(500).json({ ok: false, msg: "No object with this id" });
     }
 
