@@ -23,9 +23,9 @@ const CustomerQr = require("./models/CustomerQr");
 const lastScannedQr = require("./models/LastScannedQr");
 const { db } = require("./models/Partners");
 const csv = require("csvtojson");
-const other=require("./models/Documents/Other")
-const cookieParser=require('cookie-parser')
-const Cookies=require("js-cookie")
+const other = require("./models/Documents/Other");
+const cookieParser = require("cookie-parser");
+const Cookies = require("js-cookie");
 // const { initializeApp } = require('firebase-admin/app');
 // const fbApp=initializeApp()
 var admin = require("firebase-admin");
@@ -36,6 +36,7 @@ const serviceAccount = require("./wesafeclone-8866289e61b3.json");
 // aws document configs
 const documentRouter = require("./routes/document-route");
 const visibilityRouter = require("./routes/visibility-route");
+const smsController = require("./controller/sms-controller");
 const { request } = require("http");
 
 connectDB();
@@ -56,7 +57,7 @@ connectDB();
 //   "auth_provider_x509_cert_url": process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
 //   "client_x509_cert_url": process.env.
 // }
-app.use(cors());  
+app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 //app.use(cookieParser())
@@ -65,6 +66,9 @@ app.use(express.static(path.resolve(__dirname, "public")));
 // app.use(express.static(path.resolve(__dirname, "uploads")));
 app.use("/api/wesafe/docs", documentRouter);
 app.use("/api/wesafe/visibility", visibilityRouter);
+
+app.post("/api/wesafe/customSms", smsController.sendSms);
+app.post("/api/wesafe/commonSms", smsController.sendMessgeToSubs);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -158,30 +162,30 @@ app.delete("/doc/:id", async (req, res) => {
 });
 
 app.delete("/qr/:id", async (req, res) => {
-    const id = req.params.id;
-    try {
-      const qrDetails=await CustomerQr.find({_id:id})
-      const qrCodeRef = fireDb.collection("QRCode").doc(`${qrDetails[0].qrId}`);
-      const doc = await qrCodeRef.get();
-      //const scanData=await lastScannedQr.find({qrcode:qrDetails[0].qrId})
-      await qrCodeRef.set({
-              Consumed: false,
-              UserMapped: false,
-              PIN: "",
-              UserID: "",
-              URL: "",
-              default: false,
-              Passcode: "",
-              ID: "",
-              Label: "",
-              SubContractor: "",
-      });
-      await lastScannedQr.deleteMany({qrcode:qrDetails[0].qrId})
-      await CustomerQr.findByIdAndDelete(id);
-      res.json({ result, deleted: true });
-    } catch (error) {
-      res.json({ error: error.message });
-    }
+  const id = req.params.id;
+  try {
+    const qrDetails = await CustomerQr.find({ _id: id });
+    const qrCodeRef = fireDb.collection("QRCode").doc(`${qrDetails[0].qrId}`);
+    const doc = await qrCodeRef.get();
+    //const scanData=await lastScannedQr.find({qrcode:qrDetails[0].qrId})
+    await qrCodeRef.set({
+      Consumed: false,
+      UserMapped: false,
+      PIN: "",
+      UserID: "",
+      URL: "",
+      default: false,
+      Passcode: "",
+      ID: "",
+      Label: "",
+      SubContractor: "",
+    });
+    await lastScannedQr.deleteMany({ qrcode: qrDetails[0].qrId });
+    await CustomerQr.findByIdAndDelete(id);
+    res.json({ result, deleted: true });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
 });
 
 app.get("/customers", async (req, res) => {
@@ -200,7 +204,7 @@ app.get("/upload/:id", async (req, res) => {
   res.json({ doc });
 });
 
-app.get("/documents",async(req,res) => {
+app.get("/documents", async (req, res) => {
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -214,16 +218,18 @@ app.get("/documents",async(req,res) => {
       $lookup: {
         from: "customerqrs",
         localField: "_id",
-        foreignField: "customerId", 
+        foreignField: "customerId",
         as: "customerQrs",
       },
     },
     {
       $lookup: {
         from: "others",
-        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
-        pipeline:[
-          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        let: {
+          userUid_childListUid: { $concat: ["$userUid", "_", "$childListUid"] },
+        },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$userId", "$$userUid_childListUid"] } } },
         ],
         as: "customerDocs",
       },
@@ -241,8 +247,8 @@ app.get("/documents",async(req,res) => {
   //   if(customer.customerDocs.length>0)
   //     return customer
   // })
-  res.json({customers})
-})
+  res.json({ customers });
+});
 
 app.get("/customerData", async (req, res) => {
   var customers = await Customers.aggregate([
@@ -265,9 +271,11 @@ app.get("/customerData", async (req, res) => {
     {
       $lookup: {
         from: "others",
-        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
-        pipeline:[
-          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        let: {
+          userUid_childListUid: { $concat: ["$userUid", "_", "$childListUid"] },
+        },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$userId", "$$userUid_childListUid"] } } },
         ],
         as: "customerDocs",
       },
@@ -296,7 +304,7 @@ app.get("/customerData", async (req, res) => {
 app.get("/customerData/:id/search", async (req, res) => {
   var searchKey = req.query.searchKey.toLowerCase().trim();
   console.log(searchKey);
-  const {id}=req.params
+  const { id } = req.params;
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -317,9 +325,11 @@ app.get("/customerData/:id/search", async (req, res) => {
     {
       $lookup: {
         from: "others",
-        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
-        pipeline:[
-          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        let: {
+          userUid_childListUid: { $concat: ["$userUid", "_", "$childListUid"] },
+        },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$userId", "$$userUid_childListUid"] } } },
         ],
         as: "customerDocs",
       },
@@ -342,10 +352,9 @@ app.get("/customerData/:id/search", async (req, res) => {
     },
   ]);
 
-  customers=customers.filter((customer) => {
-    if(customer.partnerUid===id)
-      return customer
-  }) 
+  customers = customers.filter((customer) => {
+    if (customer.partnerUid === id) return customer;
+  });
 
   let filteredData = customers?.filter((data) => {
     const customerData = Object.keys(data).some((key) => {
@@ -358,12 +367,11 @@ app.get("/customerData/:id/search", async (req, res) => {
 });
 
 app.get("/customerData/:id/new", async (req, res) => {
-  
   const page = parseInt(req.query.page);
   const limit = parseInt(req.query.limit);
   const startIndex = (page - 1) * limit;
   const endIndex = page * limit;
-  const {id}=req.params
+  const { id } = req.params;
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -384,9 +392,11 @@ app.get("/customerData/:id/new", async (req, res) => {
     {
       $lookup: {
         from: "others",
-        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
-        pipeline:[
-          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        let: {
+          userUid_childListUid: { $concat: ["$userUid", "_", "$childListUid"] },
+        },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$userId", "$$userUid_childListUid"] } } },
         ],
         as: "customerDocs",
       },
@@ -409,10 +419,9 @@ app.get("/customerData/:id/new", async (req, res) => {
     },
   ]);
 
-  customers=customers.filter((customer) => {
-    if(customer.partnerUid===id)
-      return customer
-  })  
+  customers = customers.filter((customer) => {
+    if (customer.partnerUid === id) return customer;
+  });
 
   const results = {};
   if (startIndex > 0) {
@@ -434,14 +443,28 @@ app.get("/customerData/:id/new", async (req, res) => {
 
 //filter route
 app.post("/customerData/:id/filter", async (req, res) => {
-  const { groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, registerDateStart, registerDateEnd } =
-    req.body;
-  date1=new Date(registerDateStart)
-  date2=new Date(registerDateEnd)
-  console.log(groupSelect, groupAssigned, qrAssigned, docsAssigned, qrScanData, date1, date2);
-  const {id}=req.params
+  const {
+    groupSelect,
+    groupAssigned,
+    qrAssigned,
+    docsAssigned,
+    qrScanData,
+    registerDateStart,
+    registerDateEnd,
+  } = req.body;
+  date1 = new Date(registerDateStart);
+  date2 = new Date(registerDateEnd);
+  console.log(
+    groupSelect,
+    groupAssigned,
+    qrAssigned,
+    docsAssigned,
+    qrScanData,
+    date1,
+    date2
+  );
+  const { id } = req.params;
 
-  
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -470,9 +493,11 @@ app.post("/customerData/:id/filter", async (req, res) => {
     {
       $lookup: {
         from: "others",
-        let:{"userUid_childListUid":{"$concat":["$userUid","_","$childListUid"]}},
-        pipeline:[
-          {"$match":{"$expr":{"$eq":["$userId","$$userUid_childListUid"]}}}
+        let: {
+          userUid_childListUid: { $concat: ["$userUid", "_", "$childListUid"] },
+        },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$userId", "$$userUid_childListUid"] } } },
         ],
         as: "customerDocs",
       },
@@ -487,10 +512,9 @@ app.post("/customerData/:id/filter", async (req, res) => {
     },
   ]);
 
-  customers=customers.filter((customer) => {
-    if(customer.partnerUid===id)
-      return customer
-  }) 
+  customers = customers.filter((customer) => {
+    if (customer.partnerUid === id) return customer;
+  });
 
   let filteredData = [];
 
@@ -505,7 +529,6 @@ app.post("/customerData/:id/filter", async (req, res) => {
   // }
 
   if (groupSelect !== "All") {
-    
     customers.forEach((customer) => {
       customer.customerGroups.forEach((group) => {
         if (group.groupName === groupSelect) filteredData.push(customer);
@@ -547,20 +570,34 @@ app.post("/customerData/:id/filter", async (req, res) => {
         });
       }
     });
-    if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length>0){
-      filteredData=filteredData.filter((data) => {
-        if(data.dateRegistered){
-          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
-            return data
+    if (
+      registerDateStart !== "from" &&
+      registerDateEnd !== "to" &&
+      filteredData.length > 0
+    ) {
+      filteredData = filteredData.filter((data) => {
+        if (data.dateRegistered) {
+          if (
+            date1.getTime() <= new Date(data.dateRegistered).getTime() &&
+            date2.getTime() >= new Date(data.dateRegistered).getTime()
+          )
+            return data;
         }
-      })
-    }else if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length===0){
-      filteredData=customers.filter((data) => {
-        if(data.dateRegistered){
-          if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
-            return data
+      });
+    } else if (
+      registerDateStart !== "from" &&
+      registerDateEnd !== "to" &&
+      filteredData.length === 0
+    ) {
+      filteredData = customers.filter((data) => {
+        if (data.dateRegistered) {
+          if (
+            date1.getTime() <= new Date(data.dateRegistered).getTime() &&
+            date2.getTime() >= new Date(data.dateRegistered).getTime()
+          )
+            return data;
         }
-      })
+      });
     }
   } else {
     if (groupAssigned === "Yes") {
@@ -708,20 +745,34 @@ app.post("/customerData/:id/filter", async (req, res) => {
       });
     }
   }
-  if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length>0){
-    filteredData=filteredData.filter((data) => {
-      if(data.dateRegistered){
-        if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
-          return data
+  if (
+    registerDateStart !== "from" &&
+    registerDateEnd !== "to" &&
+    filteredData.length > 0
+  ) {
+    filteredData = filteredData.filter((data) => {
+      if (data.dateRegistered) {
+        if (
+          date1.getTime() <= new Date(data.dateRegistered).getTime() &&
+          date2.getTime() >= new Date(data.dateRegistered).getTime()
+        )
+          return data;
       }
-    })
-  }else if(registerDateStart!=='from' && registerDateEnd!=='to' && filteredData.length===0){
-    filteredData=customers.filter((data) => {
-      if(data.dateRegistered){
-        if(date1.getTime()<=(new Date(data.dateRegistered).getTime()) && date2.getTime()>=(new Date(data.dateRegistered)).getTime() )
-          return data
+    });
+  } else if (
+    registerDateStart !== "from" &&
+    registerDateEnd !== "to" &&
+    filteredData.length === 0
+  ) {
+    filteredData = customers.filter((data) => {
+      if (data.dateRegistered) {
+        if (
+          date1.getTime() <= new Date(data.dateRegistered).getTime() &&
+          date2.getTime() >= new Date(data.dateRegistered).getTime()
+        )
+          return data;
       }
-    })
+    });
   }
   console.log(filteredData);
 
@@ -1649,7 +1700,7 @@ app.get("/admin/search", async (req, res) => {
     },
   ]);
 
-  console.log(customers)
+  console.log(customers);
 
   let filteredData = customers?.filter((data) => {
     const customerData = Object.keys(data).some((key) => {
@@ -1658,7 +1709,7 @@ app.get("/admin/search", async (req, res) => {
     return customerData;
   });
 
-  res.json({ customers:filteredData });
+  res.json({ customers: filteredData });
 });
 
 app.get("/admin/all", async (req, res) => {
@@ -1710,7 +1761,7 @@ app.get("/admin/all", async (req, res) => {
   res.json({ customers });
 });
 
-app.get("/admin/scan",async(req,res) =>{
+app.get("/admin/scan", async (req, res) => {
   var scanData = await lastScannedQr.aggregate([
     {
       $lookup: {
@@ -1729,15 +1780,17 @@ app.get("/admin/scan",async(req,res) =>{
       },
     },
   ]);
-  scanData.sort((x,y) => {return y.datetime-x.datetime} )
-  res.json({scanData,message:'working'})
-})
+  scanData.sort((x, y) => {
+    return y.datetime - x.datetime;
+  });
+  res.json({ scanData, message: "working" });
+});
 
-app.post("/admin/scan/filter",async(req,res) =>{
-  const {registerDateStart,registerDateEnd}=req.body
-  var filteredData=[]
-  date1=new Date(registerDateStart)
-  date2=new Date(registerDateEnd)
+app.post("/admin/scan/filter", async (req, res) => {
+  const { registerDateStart, registerDateEnd } = req.body;
+  var filteredData = [];
+  date1 = new Date(registerDateStart);
+  date2 = new Date(registerDateEnd);
   var scanData = await lastScannedQr.aggregate([
     {
       $lookup: {
@@ -1756,23 +1809,28 @@ app.post("/admin/scan/filter",async(req,res) =>{
       },
     },
   ]);
-  scanData.sort((x,y) => {return y.datetime-x.datetime} )
-  if(registerDateStart!=='from'&& registerDateEnd!=='to'){
-    scanData=scanData.filter((data) => {
-      if(data.datetime){
-        if(date1.getTime()<=(new Date(data.datetime).getTime()) && date2.getTime()>=(new Date(data.datetime)).getTime() )
-          return data
+  scanData.sort((x, y) => {
+    return y.datetime - x.datetime;
+  });
+  if (registerDateStart !== "from" && registerDateEnd !== "to") {
+    scanData = scanData.filter((data) => {
+      if (data.datetime) {
+        if (
+          date1.getTime() <= new Date(data.datetime).getTime() &&
+          date2.getTime() >= new Date(data.datetime).getTime()
+        )
+          return data;
       }
-    })
+    });
   }
-  console.log(scanData)
+  console.log(scanData);
   //console.log(new Date(scanData[0].datetime),new Date(registerDateStart),new Date(registerDateEnd))
-  res.json({scanData,message:'working'})
-})
+  res.json({ scanData, message: "working" });
+});
 
-app.get("/admin/scan/search",async(req,res) => {
-  var searchKey=req.query.searchKey?.toLowerCase().trim()
-  console.log(searchKey)
+app.get("/admin/scan/search", async (req, res) => {
+  var searchKey = req.query.searchKey?.toLowerCase().trim();
+  console.log(searchKey);
   var scanData = await lastScannedQr.aggregate([
     {
       $lookup: {
@@ -1792,37 +1850,52 @@ app.get("/admin/scan/search",async(req,res) => {
     },
   ]);
 
+  let filteredData = scanData?.filter((data) => {
+    const scanData = Object.keys(data).some((key) => {
+      return data[key]?.toString().toLowerCase().includes(searchKey);
+    });
+    return scanData;
+  });
 
-  let filteredData=scanData?.filter((data) => {
-    const scanData= Object.keys(data).some(key => {
-        return data[key]?.toString().toLowerCase().includes(searchKey)
-    })
-    return scanData
-  })
-
-  if(filteredData.length===0){
-    filteredData=scanData?.filter((data) => {
-      const scanData= Object.keys(data.customer[0]).some(key => {
-          return data.customer[0][key]?.toString().toLowerCase().includes(searchKey)
-      })
-      return scanData
-    })
+  if (filteredData.length === 0) {
+    filteredData = scanData?.filter((data) => {
+      const scanData = Object.keys(data.customer[0]).some((key) => {
+        return data.customer[0][key]
+          ?.toString()
+          .toLowerCase()
+          .includes(searchKey);
+      });
+      return scanData;
+    });
   }
-  
-  filteredData.sort((x,y) => {return y.datetime-x.datetime} )
-  res.json({filteredData})
-})
 
-app.patch("/customer/:id",async(req,res) => {
-  const id= req.params.id
+  filteredData.sort((x, y) => {
+    return y.datetime - x.datetime;
+  });
+  res.json({ filteredData });
+});
+
+app.patch("/customer/:id", async (req, res) => {
+  const id = req.params.id;
   try {
-    const {name, email, mobile, address, dob, bloodGroup, gender, emergencyContactMobile1, emergencyContactMobile2, 
-      emergencyContactName1, emergencyContactName2}=req.body
-    var customer= await Customers.find({_id: id})
-    var ec1= {}
-    var ec2= {}
-    var updateObj= {}
-  
+    const {
+      name,
+      email,
+      mobile,
+      address,
+      dob,
+      bloodGroup,
+      gender,
+      emergencyContactMobile1,
+      emergencyContactMobile2,
+      emergencyContactName1,
+      emergencyContactName2,
+    } = req.body;
+    var customer = await Customers.find({ _id: id });
+    var ec1 = {};
+    var ec2 = {};
+    var updateObj = {};
+
     // if(emergencyContactMobile1!=='' && emergencyContactName1!==''){
     //   ec1.name=emergencyContactName1,
     //   ec1.contact=emergencyContactMobile1
@@ -1831,40 +1904,32 @@ app.patch("/customer/:id",async(req,res) => {
     //   ec2.name=emergencyContactName2,
     //   ec2.contact=emergencyContactMobile2
     // }
-  
-    if(name!=='')
-      updateObj.name=name
-    if(email!=='')
-      updateObj.email=email
-    if(mobile!=='')
-      updateObj.mobile=mobile
-    if(address!=='')
-      updateObj.address=address
-    if(dob!=='')
-      updateObj.dob=new Date(dob)
-    if(bloodGroup!=='')
-      updateObj.bloodGroup=bloodGroup
-    if(gender!=='')
-      updateObj.gender=gender
-  
-    if(emergencyContactName1!=='')
-      updateObj.emergencyContactName1=emergencyContactName1
-    if(emergencyContactMobile1!=='')
-      updateObj.emergencyContactMobile1=emergencyContactMobile1
-  
-    if(emergencyContactName2!=='')
-      updateObj.emergencyContactName2=emergencyContactName2
-    if(emergencyContactMobile2!=='')
-      updateObj.emergencyContactMobile2=emergencyContactMobile2
-  
-    await Customers.updateOne({_id:id},{$set:updateObj})
-    
-    res.json({customer,updateObj,message:'successfully updated'})
+
+    if (name !== "") updateObj.name = name;
+    if (email !== "") updateObj.email = email;
+    if (mobile !== "") updateObj.mobile = mobile;
+    if (address !== "") updateObj.address = address;
+    if (dob !== "") updateObj.dob = new Date(dob);
+    if (bloodGroup !== "") updateObj.bloodGroup = bloodGroup;
+    if (gender !== "") updateObj.gender = gender;
+
+    if (emergencyContactName1 !== "")
+      updateObj.emergencyContactName1 = emergencyContactName1;
+    if (emergencyContactMobile1 !== "")
+      updateObj.emergencyContactMobile1 = emergencyContactMobile1;
+
+    if (emergencyContactName2 !== "")
+      updateObj.emergencyContactName2 = emergencyContactName2;
+    if (emergencyContactMobile2 !== "")
+      updateObj.emergencyContactMobile2 = emergencyContactMobile2;
+
+    await Customers.updateOne({ _id: id }, { $set: updateObj });
+
+    res.json({ customer, updateObj, message: "successfully updated" });
   } catch (error) {
-    res.json({message: error.message})
+    res.json({ message: error.message });
   }
- 
-})
+});
 
 app.listen((PORT = 1902), () => {
   console.log("server started");
