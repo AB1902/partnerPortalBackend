@@ -1157,6 +1157,26 @@ app.post("/customers", async (req, res) => {
   }
 });
 
+//get the customer data
+app.get("/customer/:uid/:cid", async (req, res) => {
+  try {
+    const { uid, cid } = req.params;
+
+    let customer = await Customers.find({ userUid: uid, childListUid: cid });
+
+    if (customer.length === 0) {
+      return res.status(200).json({ ok: true, result: false, data: null });
+    } else {
+      return res
+        .status(200)
+        .json({ ok: true, result: true, data: customer[0] });
+    }
+  } catch (err) {
+    console.log(err);
+    return res.status(200).json({ ok: false, msg: err?.message, err });
+  }
+});
+
 //upload multiple customers through excel
 app.post(
   "/uploadMultipleCustomers",
