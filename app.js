@@ -1951,6 +1951,6 @@ app.patch("/customer/:id", async (req, res) => {
   }
 });
 
-app.listen((PORT = 1902), () => {
+app.listen((PORT = process.env.PORT), () => {
   console.log("server started");
 });

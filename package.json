@@ -36,6 +36,7 @@
     "multer-gridfs-storage": "^5.0.2",
     "nodemon": "^2.0.20",
     "path": "^0.12.7",
+    "pm2": "^5.3.0",
     "uuid": "^3.4.0"
   }
 }
