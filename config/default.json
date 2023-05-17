@@ -1,4 +1,4 @@
 {
-    "mongoURI":"mongodb+srv://hector1902:Viennacity.123@cluster0.1fezuvb.mongodb.net/?retryWrites=true&w=majority",
-    "JWTSecret":"Viennacity.123"
+  "mongoURI": "mongodb+srv://wesafe-partener:xJSK6bt5Axho4crM@cluster0.cb7fn2p.mongodb.net/?retryWrites=true&w=majority",
+  "JWTSecret": "Viennacity.123"
 }
