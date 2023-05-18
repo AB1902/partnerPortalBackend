@@ -41,22 +41,6 @@ const { request } = require("http");
 
 connectDB();
 
-// const mongouri='mongodb+srv://hector1902:Viennacity.123@cluster0.1fezuvb.mongodb.net/?retryWrites=true&w=majority'
-// const conn=mongoose.createConnection(mongouri)
-// let gfs
-
-// const serviceAccount={
-//   "type": process.env.FIREBASE_TYPE,
-//   "project_id": process.env.FIREBASE_PROJECT_ID,
-//   "private_key_id": process.env.FIREBASE_PRIVATE_KEY_ID,
-//   "private_key": process.env.FIREBASE_PRIVATE_KEY,
-//   "client_email": process.env.FIREBASE_CLIENT_EMAIL,
-//   "client_id": process.env.FIREBASE_CLIENT_ID,
-//   "auth_uri": process.env.FIREBASE_AUTH_URI,
-//   "token_uri": process.env.FIREBASE_TOKEN_URI,
-//   "auth_provider_x509_cert_url": process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
-//   "client_x509_cert_url": process.env.
-// }
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -77,7 +61,7 @@ admin.initializeApp({
 
 var fireDb = admin.firestore();
 
-app.get("/fireBaseData", async (req, res) => {
+app.get("/api/fireBaseData", async (req, res) => {
   const qrCodeRef = fireDb.collection("QRCode").doc("1uFTMh");
   const doc = await qrCodeRef.get();
   if (!doc.exists) {
@@ -119,38 +103,38 @@ const upload = multer({
   storage,
 }).single("filename");
 
-app.get("/", (req, res) => {
+app.get("/api/", (req, res) => {
   res.send("route working");
 });
 
-app.get("/partners", async (req, res) => {
+app.get("/api/partners", async (req, res) => {
   let partners = await Partners.find({});
   res.json({ partners });
 });
 
-app.get("/partnerUsers", async (req, res) => {
+app.get("/api/partnerUsers", async (req, res) => {
   let partnerUsers = await PartnerUsers.find({});
   res.json({ partnerUsers });
 });
 
-app.get("/groups", async (req, res) => {
+app.get("/api/groups", async (req, res) => {
   let groups = await Groups.find({});
   res.json({ groups });
 });
 
-app.get("/customers/:id/groups", async (req, res) => {
+app.get("/api/customers/:id/groups", async (req, res) => {
   const customerId = req.params.id;
   const customerGroups = await CustomerGroups.find({ customerId });
   res.json({ customerGroups });
 });
 
-app.get("/customers/:id/qr", async (req, res) => {
+app.get("/api/customers/:id/qr", async (req, res) => {
   const customerId = req.params.id;
   const customerQrs = await CustomerQr.find({ customerId });
   res.json({ customerQrs });
 });
 
-app.delete("/doc/:id", async (req, res) => {
+app.delete("/api/doc/:id", async (req, res) => {
   const _id = req.params.id;
   Document.findByIdAndDelete(_id)
     .then((result) => {
@@ -161,7 +145,7 @@ app.delete("/doc/:id", async (req, res) => {
     });
 });
 
-app.delete("/qr/:id", async (req, res) => {
+app.delete("/api/qr/:id", async (req, res) => {
   const id = req.params.id;
   try {
     const qrDetails = await CustomerQr.find({ _id: id });
@@ -188,23 +172,23 @@ app.delete("/qr/:id", async (req, res) => {
   }
 });
 
-app.get("/customers", async (req, res) => {
+app.get("/api/customers", async (req, res) => {
   let customers = await Customers.find({});
   res.json({ customers });
 });
 
-app.get("/upload", async (req, res) => {
+app.get("/api/upload", async (req, res) => {
   const docs = await Document.find({});
   res.status(200).json({ docs });
 });
 
-app.get("/upload/:id", async (req, res) => {
+app.get("/api/upload/:id", async (req, res) => {
   const customerHash = req.params.id;
   const doc = await Document.find({ customerHash });
   res.json({ doc });
 });
 
-app.get("/documents", async (req, res) => {
+app.get("/api/documents", async (req, res) => {
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -250,7 +234,7 @@ app.get("/documents", async (req, res) => {
   res.json({ customers });
 });
 
-app.get("/customerData", async (req, res) => {
+app.get("/api/customerData", async (req, res) => {
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -301,7 +285,7 @@ app.get("/customerData", async (req, res) => {
   res.json({ customers });
 });
 
-app.get("/customerData/:id/search", async (req, res) => {
+app.get("/api/customerData/:id/search", async (req, res) => {
   var searchKey = req.query.searchKey.toLowerCase().trim();
   console.log(searchKey);
   const { id } = req.params;
@@ -366,7 +350,7 @@ app.get("/customerData/:id/search", async (req, res) => {
   res.json({ customers: filteredData });
 });
 
-app.get("/customerData/:id/new", async (req, res) => {
+app.get("/api/customerData/:id/new", async (req, res) => {
   const page = parseInt(req.query.page);
   const limit = parseInt(req.query.limit);
   const startIndex = (page - 1) * limit;
@@ -442,7 +426,7 @@ app.get("/customerData/:id/new", async (req, res) => {
 });
 
 //filter route
-app.post("/customerData/:id/filter", async (req, res) => {
+app.post("/api/customerData/:id/filter", async (req, res) => {
   const {
     groupSelect,
     groupAssigned,
@@ -779,7 +763,7 @@ app.post("/customerData/:id/filter", async (req, res) => {
   res.json({ filteredData });
 });
 
-app.post("/partnerUsers/signup", async (req, res) => {
+app.post("/api/partnerUsers/signup", async (req, res) => {
   try {
     const { partnerUserEmail, mobile, partnerUid, partnerUserUid, password } =
       req.body;
@@ -804,7 +788,7 @@ app.post("/partnerUsers/signup", async (req, res) => {
   }
 });
 
-app.post("/partnerUsers/login", async (req, res) => {
+app.post("/api/partnerUsers/login", async (req, res) => {
   const { partnerUserEmail } = req.body;
   const { password } = req.body;
   try {
@@ -850,7 +834,7 @@ app.post("/partnerUsers/login", async (req, res) => {
   }
 });
 
-app.post("/partners", async (req, res) => {
+app.post("/api/partners", async (req, res) => {
   try {
     const { businessName, partnerUid, maxUsers, maxPartnerUsers, maxGroups } =
       req.body;
@@ -873,7 +857,7 @@ app.post("/partners", async (req, res) => {
   }
 });
 
-app.post("/groups", async (req, res) => {
+app.post("/api/groups", async (req, res) => {
   try {
     const { groupName, partnerUid, groupDescription, startDate, endDate } =
       req.body;
@@ -900,7 +884,7 @@ app.post("/groups", async (req, res) => {
 });
 
 //add many customers to already exitsing group
-app.post("/groupsAddMany", async (req, res) => {
+app.post("/api/groupsAddMany", async (req, res) => {
   const {
     groupName,
     groupId,
@@ -932,7 +916,7 @@ app.post("/groupsAddMany", async (req, res) => {
 });
 
 //add multiple customers to a newly created group
-app.post("/createGroupAddMultiCustomer", async (req, res) => {
+app.post("/api/createGroupAddMultiCustomer", async (req, res) => {
   try {
     const { groupName, groupDescription, startDate, endDate } = req.body;
     const dataArr = req.body.dataArr;
@@ -978,7 +962,7 @@ app.post("/createGroupAddMultiCustomer", async (req, res) => {
 });
 
 //add a single customer to a new group
-app.post("/createGroupAddCustomer/:id", async (req, res) => {
+app.post("/api/createGroupAddCustomer/:id", async (req, res) => {
   const customerId = req.params.id;
   try {
     const { groupName, groupDescription, startDate, endDate } = req.body;
@@ -1019,13 +1003,13 @@ app.post("/createGroupAddCustomer/:id", async (req, res) => {
 
 //upload a doucment to a single customer
 
-app.get("/getfile/:filename", function (req, response) {
+app.get("/api/getfile/:filename", function (req, response) {
   const filename = req.params.filename;
   var tempFile = `./uploads/${filename}`;
   response.contentType("blob").sendFile(`${filename}`, { root: "./uploads" });
 });
 
-app.post("/upload", async (req, res) => {
+app.post("/api/upload", async (req, res) => {
   upload(req, res, (err) => {
     if (err) {
       console.log(err.message);
@@ -1052,7 +1036,7 @@ app.post("/upload", async (req, res) => {
 });
 
 //upload a doucment to multiple customers
-app.post("/uploadToMultiCustomers", async (req, res) => {
+app.post("/api/uploadToMultiCustomers", async (req, res) => {
   try {
     upload(req, res, (err) => {
       if (err) {
@@ -1083,7 +1067,7 @@ app.post("/uploadToMultiCustomers", async (req, res) => {
 });
 
 //upload a single customer
-app.post("/customers", async (req, res) => {
+app.post("/api/customers", async (req, res) => {
   let {
     name,
     address,
@@ -1158,7 +1142,7 @@ app.post("/customers", async (req, res) => {
 });
 
 //get the customer data
-app.get("/customer/:uid/:cid", async (req, res) => {
+app.get("/api/customer/:uid/:cid", async (req, res) => {
   try {
     const { uid, cid } = req.params;
 
@@ -1179,7 +1163,7 @@ app.get("/customer/:uid/:cid", async (req, res) => {
 
 //upload multiple customers through excel
 app.post(
-  "/uploadMultipleCustomers",
+  "/api/uploadMultipleCustomers",
   customerUpload.single("filename"),
   async (req, res) => {
     try {
@@ -1230,7 +1214,7 @@ app.post(
 //     }
 // })
 
-app.put("/customers/:id/childList", async (req, res) => {
+app.put("/api/customers/:id/childList", async (req, res) => {
   const { childHash } = req.body;
   const userUid = req.params.id;
   const newChild = { childHash };
@@ -1274,7 +1258,7 @@ app.put("/customers/:id/childList", async (req, res) => {
 // })
 
 //adding customer to a new group
-app.post("/customers/:id/groups", async (req, res) => {
+app.post("/api/customers/:id/groups", async (req, res) => {
   const {
     groupName,
     groupId,
@@ -1302,7 +1286,7 @@ app.post("/customers/:id/groups", async (req, res) => {
 });
 
 //assigning QR to customer
-app.post("/customers/:id/qr", async (req, res) => {
+app.post("/api/customers/:id/qr", async (req, res) => {
   const customerId = req.params.id;
   const { qrId, qrPin, lastScanned } = req.body;
   const customer = await Customers.find({ _id: customerId });
@@ -1356,7 +1340,7 @@ app.post("/customers/:id/qr", async (req, res) => {
   }
 });
 
-app.post("/:id/lastScanned", async (req, res) => {
+app.post("/api/:id/lastScanned", async (req, res) => {
   const {
     userUid,
     childListUid,
@@ -1408,7 +1392,7 @@ app.post("/:id/lastScanned", async (req, res) => {
   }
 });
 
-app.get("/:id/lastScanned", async (req, res) => {
+app.get("/api/:id/lastScanned", async (req, res) => {
   const customerId = req.params.id;
   try {
     let lastScanned = await lastScannedQr.find({ customerId });
@@ -1426,7 +1410,7 @@ app.get("/:id/lastScanned", async (req, res) => {
 //     res.send(doc)
 // })
 
-app.delete("/customer/:id", async (req, res) => {
+app.delete("/api/customer/:id", async (req, res) => {
   const customerId = req.params.id;
   try {
     await CustomerGroups.deleteMany({ customerId });
@@ -1445,7 +1429,7 @@ app.delete("/customer/:id", async (req, res) => {
   }
 });
 
-app.get("/admin", async (req, res) => {
+app.get("/api/admin", async (req, res) => {
   const page = parseInt(req.query.page);
   const limit = parseInt(req.query.limit);
   const startIndex = (page - 1) * limit;
@@ -1514,7 +1498,7 @@ app.get("/admin", async (req, res) => {
   res.json({ results });
 });
 
-app.post("/admin/filter", async (req, res) => {
+app.post("/api/admin/filter", async (req, res) => {
   const {
     partnerSelect,
     qrAssigned,
@@ -1672,7 +1656,7 @@ app.post("/admin/filter", async (req, res) => {
   res.json({ filteredData, partners });
 });
 
-app.get("/admin/search", async (req, res) => {
+app.get("/api/admin/search", async (req, res) => {
   var adminSearchKey = req.query.adminSearchKey.toLowerCase().trim();
   console.log(adminSearchKey);
   var customers = await Customers.aggregate([
@@ -1732,7 +1716,7 @@ app.get("/admin/search", async (req, res) => {
   res.json({ customers: filteredData });
 });
 
-app.get("/admin/all", async (req, res) => {
+app.get("/api/admin/all", async (req, res) => {
   var customers = await Customers.aggregate([
     {
       $lookup: {
@@ -1781,7 +1765,7 @@ app.get("/admin/all", async (req, res) => {
   res.json({ customers });
 });
 
-app.get("/admin/scan", async (req, res) => {
+app.get("/api/admin/scan", async (req, res) => {
   var scanData = await lastScannedQr.aggregate([
     {
       $lookup: {
@@ -1806,7 +1790,7 @@ app.get("/admin/scan", async (req, res) => {
   res.json({ scanData, message: "working" });
 });
 
-app.post("/admin/scan/filter", async (req, res) => {
+app.post("/api/admin/scan/filter", async (req, res) => {
   const { registerDateStart, registerDateEnd } = req.body;
   var filteredData = [];
   date1 = new Date(registerDateStart);
@@ -1848,7 +1832,7 @@ app.post("/admin/scan/filter", async (req, res) => {
   res.json({ scanData, message: "working" });
 });
 
-app.get("/admin/scan/search", async (req, res) => {
+app.get("/api/admin/scan/search", async (req, res) => {
   var searchKey = req.query.searchKey?.toLowerCase().trim();
   console.log(searchKey);
   var scanData = await lastScannedQr.aggregate([
@@ -1895,7 +1879,7 @@ app.get("/admin/scan/search", async (req, res) => {
   res.json({ filteredData });
 });
 
-app.patch("/customer/:id", async (req, res) => {
+app.patch("/api/customer/:id", async (req, res) => {
   const id = req.params.id;
   try {
     const {
